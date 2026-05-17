@@ -47,6 +47,28 @@ export default function LoginPage() {
     CLIENT: "/client/search",
   };
 
+  React.useEffect(() => {
+    let active = true;
+    async function checkAuth() {
+      try {
+        const res = await fetch("/api/auth/me");
+        if (res.ok && active) {
+          const { user } = await res.json();
+          if (user) {
+            const target = roleRedirect[user.role] || "/client/search";
+            router.replace(target);
+          }
+        }
+      } catch (err) {
+        console.error("Auth check failed:", err);
+      }
+    }
+    checkAuth();
+    return () => {
+      active = false;
+    };
+  }, [router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
