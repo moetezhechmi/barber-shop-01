@@ -273,14 +273,6 @@ export default function RegisterPage() {
                   >
                     Devenir Propriétaire
                   </button>
-                  {" ou "}
-                  <button
-                    type="button"
-                    onClick={() => { setError(null); setRole("BARBER"); }}
-                    className="font-bold text-violet-400 hover:text-violet-300 transition-colors"
-                  >
-                    Devenir Barbier
-                  </button>
                 </p>
               ) : (
                 <p className="text-xs text-neutral-400">

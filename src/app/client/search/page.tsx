@@ -19,6 +19,31 @@ export default function ClientSearchPage() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
+  interface ClientPromotion {
+    id: string;
+    shopId: string;
+    title: string;
+    description: string | null;
+    discount: number;
+    startDate: string;
+    endDate: string;
+    imageUrl: string | null;
+    shop: {
+      name: string;
+      address: string;
+      image: string | null;
+    };
+  }
+
+  const [promotions, setPromotions] = React.useState<ClientPromotion[]>([]);
+
+  React.useEffect(() => {
+    fetch("/api/promotions")
+      .then((r) => r.json())
+      .then((d) => setPromotions(d.promotions || []))
+      .catch((e) => console.error("Error loading promotions:", e));
+  }, []);
+
   const fetchShops = React.useCallback(async (q: string) => {
     setLoading(true);
     setError(null);
@@ -74,6 +99,66 @@ export default function ClientSearchPage() {
           />
         </div>
       </div>
+
+      {/* Offres Spéciales & Promotions */}
+      {promotions.length > 0 && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-100 dark:bg-red-950/30 text-red-600 dark:text-red-400">
+              <Sparkles className="h-4 w-4" />
+            </div>
+            <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
+              Offres Spéciales & Promotions 🎉
+            </h2>
+          </div>
+          
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {promotions.map((promo) => (
+              <div
+                key={promo.id}
+                className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-red-200/60 bg-gradient-to-br from-red-500/5 to-orange-500/5 dark:border-red-900/40 p-5 hover:shadow-[0_15px_30px_rgb(239,68,68,0.08)] dark:hover:shadow-[0_15px_30px_rgb(239,68,68,0.15)] transition-all duration-300 shadow-sm"
+              >
+                {/* Remise badge floating */}
+                <div className="absolute top-4 right-4 z-10 px-3 py-1 rounded-2xl text-xs font-black bg-red-600 text-white shadow-md animate-pulse">
+                  -{promo.discount}% OFF
+                </div>
+
+                <div className="space-y-3">
+                  {/* Shop name subtitle */}
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-red-500 uppercase tracking-wider">
+                    <Scissors className="h-3.5 w-3.5" />
+                    <span>{promo.shop.name}</span>
+                  </div>
+
+                  <h3 className="text-lg font-bold text-neutral-900 dark:text-neutral-50 group-hover:text-red-500 dark:group-hover:text-red-400 transition-colors line-clamp-1">
+                    {promo.title}
+                  </h3>
+
+                  {promo.description && (
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400 line-clamp-2 leading-relaxed">
+                      {promo.description}
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-5 pt-4 border-t border-red-200/20 dark:border-red-900/20 flex items-center justify-between">
+                  <div className="text-[10px] font-semibold text-neutral-400 dark:text-neutral-50">
+                    Valable jusqu&apos;au {promo.endDate}
+                  </div>
+                  
+                  <Link
+                    href={`/client/shops/${promo.shopId}?promo=true&startDate=${promo.startDate}&endDate=${promo.endDate}&discount=${promo.discount}&title=${encodeURIComponent(promo.title)}`}
+                    className="inline-flex items-center gap-1 text-xs font-bold text-red-600 dark:text-red-400 hover:text-red-500 dark:hover:text-red-300 transition-colors"
+                  >
+                    <span>En profiter</span>
+                    <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Loading state */}
       {loading && (

@@ -259,7 +259,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           </div>
         )}
 
-        <main className="relative z-10">{children}</main>
+        <main className="relative">{children}</main>
 
         {/* Mobile bottom nav (Floating) */}
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[90%] max-w-md sm:hidden">

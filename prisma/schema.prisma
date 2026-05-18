@@ -47,6 +47,7 @@ model Shop {
   workingHours WorkingHours[]
   appointments Appointment[]
   reviews      Review[]
+  promotions   Promotion[]
 }
 
 model Barber {
@@ -158,4 +159,19 @@ model Notification {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+}
+
+model Promotion {
+  id          String   @id @default(cuid())
+  shopId      String
+  title       String
+  description String?
+  discount    Int      // Percentage discount (e.g., 20 for 20% off)
+  startDate   String   // Format: YYYY-MM-DD
+  endDate     String   // Format: YYYY-MM-DD
+  isActive    Boolean  @default(true)
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+
+  shop        Shop     @relation(fields: [shopId], references: [id])
 }

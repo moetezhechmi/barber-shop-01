@@ -1,8 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { Users, Check, X, Plus, UserCheck, UserX } from "lucide-react";
+import { Users, Check, X, Plus, UserCheck, UserX, Copy, CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" {...props}>
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.458 5.704 1.459h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+  </svg>
+);
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -48,8 +55,35 @@ export default function OwnerBarbersPage() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [showAddModal, setShowAddModal] = React.useState(false);
-  const [addEmail, setAddEmail] = React.useState("");
   const [adding, setAdding] = React.useState(false);
+  const [formData, setFormData] = React.useState({
+    name: "",
+    email: "",
+    phone: "",
+    bio: "",
+  });
+  const [createdCredentials, setCreatedCredentials] = React.useState<{
+    name: string;
+    email: string;
+    password?: string;
+    phone: string;
+    whatsappUrl: string;
+  } | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = React.useState(false);
+  const [copiedEmail, setCopiedEmail] = React.useState(false);
+  const [copiedPassword, setCopiedPassword] = React.useState(false);
+
+  const handleCopy = (text: string, type: "email" | "password") => {
+    navigator.clipboard.writeText(text);
+    if (type === "email") {
+      setCopiedEmail(true);
+      setTimeout(() => setCopiedEmail(false), 2000);
+    } else {
+      setCopiedPassword(true);
+      setTimeout(() => setCopiedPassword(false), 2000);
+    }
+    toast("Copié dans le presse-papiers !", "success");
+  };
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("fr-FR", {
@@ -162,32 +196,52 @@ export default function OwnerBarbersPage() {
   }
 
   async function handleAddBarber() {
-    if (!addEmail.trim() || !shop) return;
+    if (!formData.name.trim() || !formData.email.trim() || !formData.phone.trim() || !shop) return;
     setAdding(true);
     try {
       const res = await fetch(`/api/shops/${shop.id}/barbers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: addEmail.trim() }),
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          phone: formData.phone.trim(),
+          bio: formData.bio.trim() || undefined,
+        }),
       });
 
+      const data = await res.json();
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(
-          errData.error || "Erreur lors de l'ajout du barbier"
-        );
+        throw new Error(data.error || "Erreur lors de la création du barbier");
       }
 
-      const data = await res.json();
       if (data.barber) {
         setBarbers((prev) => [...prev, data.barber]);
       }
-      setAddEmail("");
+
+      // Store created credentials for the success modal
+      setCreatedCredentials({
+        name: formData.name.trim(),
+        email: data.credentials?.email || formData.email.trim(),
+        password: data.credentials?.password,
+        phone: data.credentials?.phone || formData.phone.trim(),
+        whatsappUrl: data.whatsappUrl,
+      });
+
+      // Reset form
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        bio: "",
+      });
+
       setShowAddModal(false);
-      toast("Barbier ajouté avec succès", "success");
+      setShowSuccessModal(true);
+      toast("Barbier créé avec succès !", "success");
     } catch (err) {
       toast(
-        err instanceof Error ? err.message : "Erreur lors de l'ajout",
+        err instanceof Error ? err.message : "Erreur lors de la création",
         "error"
       );
     } finally {
@@ -350,40 +404,81 @@ export default function OwnerBarbersPage() {
         isOpen={showAddModal}
         onClose={() => {
           setShowAddModal(false);
-          setAddEmail("");
+          setFormData({ name: "", email: "", phone: "", bio: "" });
         }}
-        title="Ajouter un membre"
+        title="Créer un compte Barbier"
       >
         <form
           onSubmit={(e) => {
             e.preventDefault();
             handleAddBarber();
           }}
-          className="space-y-6 pt-2"
+          className="space-y-4 pt-2"
         >
           <div>
-            <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
-              Adresse e-mail du barbier
+            <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-1 ml-0.5">
+              Nom complet
+            </label>
+            <Input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="ex: Jean Dupont"
+              required
+              className="rounded-xl border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-1 ml-0.5">
+              Adresse e-mail
             </label>
             <Input
               type="email"
-              value={addEmail}
-              onChange={(e) => setAddEmail(e.target.value)}
-              placeholder="exemple@barber.com"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              placeholder="ex: jean.dupont@barber.com"
               required
-              className="rounded-xl px-4 py-6 border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900"
+              className="rounded-xl border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900"
             />
-            <p className="text-xs font-medium text-neutral-500 mt-2">
-              Note : L'utilisateur doit avoir un compte avec le rôle BARBER
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-1 ml-0.5">
+              Numéro de téléphone / WhatsApp
+            </label>
+            <Input
+              type="tel"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              placeholder="ex: +21655123456 ou 55123456"
+              required
+              className="rounded-xl border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900"
+            />
+            <p className="text-[10px] text-neutral-400 mt-1">
+              Sera utilisé pour lui envoyer ses identifiants par WhatsApp.
             </p>
           </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-1 ml-0.5">
+              Biographie (Optionnel)
+            </label>
+            <textarea
+              value={formData.bio}
+              onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+              placeholder="ex: Expert en dégradés et barbe..."
+              className="flex min-h-[80px] w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm ring-offset-white placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:ring-offset-neutral-950 dark:placeholder:text-neutral-400 dark:focus-visible:ring-neutral-300 resize-none"
+            />
+          </div>
+
           <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-neutral-100 dark:border-neutral-800">
             <Button
               type="button"
               variant="outline"
               onClick={() => {
                 setShowAddModal(false);
-                setAddEmail("");
+                setFormData({ name: "", email: "", phone: "", bio: "" });
               }}
               className="rounded-xl"
             >
@@ -391,10 +486,82 @@ export default function OwnerBarbersPage() {
             </Button>
             <Button type="submit" disabled={adding} className="gap-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white shadow-md shadow-violet-500/20">
               {adding ? <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Plus className="h-4 w-4" />}
-              {adding ? "Invitation en cours..." : "Inviter dans l'équipe"}
+              {adding ? "Création en cours..." : "Créer le compte"}
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Success Modal showing Credentials & WhatsApp Action */}
+      <Modal
+        isOpen={showSuccessModal}
+        onClose={() => {
+          setShowSuccessModal(false);
+          setCreatedCredentials(null);
+        }}
+        title="Compte créé avec succès ! 🎉"
+      >
+        <div className="space-y-6 pt-2">
+          <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-sm text-emerald-600 dark:text-emerald-400 leading-relaxed">
+            Le compte de <strong>{createdCredentials?.name}</strong> a été créé en tant que Barbier. Veuillez lui transmettre ses accès de connexion ci-dessous.
+          </div>
+
+          <div className="space-y-3">
+            <div className="relative p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-neutral-400 block mb-0.5">Identifiant (Email)</span>
+                <span className="text-sm font-semibold text-neutral-800 dark:text-white font-mono">{createdCredentials?.email}</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleCopy(createdCredentials?.email || "", "email")}
+                className="h-8 w-8 p-0 rounded-lg shrink-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
+              >
+                {copiedEmail ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4 text-neutral-400" />}
+              </Button>
+            </div>
+
+            <div className="relative p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-neutral-400 block mb-0.5">Mot de passe temporaire</span>
+                <span className="text-sm font-semibold text-neutral-800 dark:text-white font-mono">{createdCredentials?.password}</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleCopy(createdCredentials?.password || "", "password")}
+                className="h-8 w-8 p-0 rounded-lg shrink-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
+              >
+                {copiedPassword ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4 text-neutral-400" />}
+              </Button>
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-neutral-100 dark:border-neutral-800 space-y-3">
+            {createdCredentials?.whatsappUrl && (
+              <Button
+                onClick={() => {
+                  window.open(createdCredentials.whatsappUrl, "_blank");
+                }}
+                className="w-full gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20 font-bold py-5 text-sm transition-all duration-300 transform hover:-translate-y-0.5"
+              >
+                <WhatsAppIcon className="h-5 w-5 text-white" />
+                Envoyer les accès sur WhatsApp
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowSuccessModal(false);
+                setCreatedCredentials(null);
+              }}
+              className="w-full rounded-xl py-5"
+            >
+              Terminer
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

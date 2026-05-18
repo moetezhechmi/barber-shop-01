@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Store, Pencil, Plus, Clock, Shield, ShieldAlert, Sparkles, Trash2, PlusCircle, Image as ImageIcon, Upload } from "lucide-react";
+import { Store, Pencil, Plus, Clock, Shield, ShieldAlert, Sparkles, Trash2, PlusCircle, Image as ImageIcon, Upload, Tag, Megaphone } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -217,6 +217,32 @@ export default function OwnerShopPage() {
   >([]);
   const [savingHours, setSavingHours] = React.useState(false);
 
+  // Promotions State
+  interface PromotionData {
+    id: string;
+    title: string;
+    description: string | null;
+    discount: number;
+    startDate: string;
+    endDate: string;
+    isActive: boolean;
+    imageUrl: string | null;
+    createdAt: string;
+  }
+  
+  const [promotions, setPromotions] = React.useState<PromotionData[]>([]);
+  const [showPromoModal, setShowPromoModal] = React.useState(false);
+  const [newPromo, setNewPromo] = React.useState({
+    title: "",
+    description: "",
+    discount: 20,
+    startDate: "",
+    endDate: "",
+    imageUrl: "",
+  });
+  const [savingPromo, setSavingPromo] = React.useState(false);
+  const [promoUploading, setPromoUploading] = React.useState(false);
+
   async function loadShop() {
     try {
       setLoading(true);
@@ -259,6 +285,12 @@ export default function OwnerShopPage() {
           const whData = await whRes.json();
           setWorkingHours(whData.workingHours || []);
         }
+
+        const promoRes = await fetch(`/api/shops/${userShop.id}/promotions`);
+        if (promoRes.ok) {
+          const promoData = await promoRes.json();
+          setPromotions(promoData.promotions || []);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue");
@@ -270,6 +302,108 @@ export default function OwnerShopPage() {
   React.useEffect(() => {
     loadShop();
   }, []);
+
+  async function handlePromoFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    
+    const bodyFormData = new FormData();
+    bodyFormData.append("file", file);
+    
+    setPromoUploading(true);
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: bodyFormData,
+      });
+      
+      if (!res.ok) {
+        throw new Error("Erreur de téléchargement");
+      }
+      
+      const data = await res.json();
+      setNewPromo((prev) => ({
+        ...prev,
+        imageUrl: data.url,
+      }));
+      toast("Image de promotion téléversée avec succès !", "success");
+    } catch (err) {
+      toast("Erreur lors de l'upload de l'image", "error");
+    } finally {
+      setPromoUploading(false);
+    }
+  }
+
+  async function handleCreatePromotion() {
+    if (!shop) return;
+    if (!newPromo.title.trim() || !newPromo.startDate || !newPromo.endDate) {
+      toast("Le titre, la date de début et de fin sont obligatoires", "error");
+      return;
+    }
+    setSavingPromo(true);
+    try {
+      const res = await fetch(`/api/shops/${shop.id}/promotions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newPromo.title.trim(),
+          description: newPromo.description.trim() || null,
+          discount: Number(newPromo.discount),
+          startDate: newPromo.startDate,
+          endDate: newPromo.endDate,
+          imageUrl: newPromo.imageUrl.trim() || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Erreur lors de la création");
+      }
+
+      const data = await res.json();
+      setPromotions((prev) => [data.promotion, ...prev]);
+      setShowPromoModal(false);
+      setNewPromo({
+        title: "",
+        description: "",
+        discount: 20,
+        startDate: "",
+        endDate: "",
+        imageUrl: "",
+      });
+      toast("Offre promotionnelle créée et envoyée aux clients ! 🎉", "success");
+    } catch (err) {
+      toast(
+        err instanceof Error ? err.message : "Erreur lors de la création",
+        "error"
+      );
+    } finally {
+      setSavingPromo(false);
+    }
+  }
+
+  async function handleDeletePromotion(promoId: string) {
+    if (!confirm("Voulez-vous vraiment supprimer cette promotion ?")) return;
+    try {
+      const res = await fetch(`/api/promotions/${promoId}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Erreur lors de la suppression");
+      }
+
+      setPromotions((prev) => prev.filter((p) => p.id !== promoId));
+      toast("Promotion supprimée avec succès", "success");
+    } catch (err) {
+      toast(
+        err instanceof Error ? err.message : "Erreur lors de la suppression",
+        "error"
+      );
+    }
+  }
 
   async function handleCreateShop() {
     setSaving(true);
@@ -730,6 +864,95 @@ export default function OwnerShopPage() {
             </CardContent>
           </Card>
 
+          {/* Promotions Card */}
+          <Card className="border border-neutral-200 dark:border-neutral-800 shadow-sm mt-8">
+            <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-neutral-100 dark:border-neutral-800">
+              <div className="flex items-center gap-2">
+                <Megaphone className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                <CardTitle className="text-lg font-bold">Offres & Promotions</CardTitle>
+              </div>
+              <Button
+                onClick={() => setShowPromoModal(true)}
+                size="sm"
+                className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-xl shadow-md"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Nouvelle Promo
+              </Button>
+            </CardHeader>
+            <CardContent className="pt-6">
+              {promotions.length === 0 ? (
+                <div className="text-center py-10 text-neutral-500 dark:text-neutral-400">
+                  <Tag className="h-10 w-10 text-neutral-300 dark:text-neutral-700 mx-auto mb-3" />
+                  <p className="text-sm font-semibold">Aucune promotion active</p>
+                  <p className="text-xs text-neutral-400 dark:text-neutral-50 mt-1">
+                    Créez une offre spéciale pour attirer des clients et les notifier instantanément.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {promotions.map((promo) => (
+                    <div
+                      key={promo.id}
+                      className="group relative flex flex-col md:flex-row gap-4 p-4 rounded-2xl border border-neutral-200/60 dark:border-neutral-800/80 bg-white dark:bg-neutral-900/40 hover:bg-neutral-50 dark:hover:bg-neutral-900/60 transition-all duration-300 shadow-sm overflow-hidden"
+                    >
+                      {/* Promo discount badge */}
+                      <div className="absolute top-3 left-3 z-10 px-2.5 py-1 rounded-xl text-xs font-black bg-red-600 text-white shadow-md animate-pulse">
+                        -{promo.discount}% OFF
+                      </div>
+
+                      {/* Promo Image fallback */}
+                      <div className="w-full md:w-32 aspect-video md:aspect-square rounded-xl overflow-hidden bg-neutral-100 dark:bg-neutral-850 border border-neutral-200/40 dark:border-neutral-850 shrink-0">
+                        {promo.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={promo.imageUrl}
+                            alt={promo.title}
+                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="h-full w-full bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-white">
+                            <Tag className="h-8 w-8 opacity-80" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Promo Text Details */}
+                      <div className="flex-1 flex flex-col justify-between py-0.5">
+                        <div>
+                          <h4 className="font-bold text-neutral-900 dark:text-neutral-50 text-base line-clamp-1">
+                            {promo.title}
+                          </h4>
+                          {promo.description && (
+                            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 line-clamp-2 leading-relaxed">
+                              {promo.description}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="mt-3 flex items-center justify-between">
+                          <div className="text-[10px] font-semibold text-neutral-400 dark:text-neutral-500 flex flex-col">
+                            <span>Début : {promo.startDate}</span>
+                            <span>Fin : {promo.endDate}</span>
+                          </div>
+                          
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePromotion(promo.id)}
+                            className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-all"
+                            title="Supprimer la promotion"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Edit Shop Modal */}
           <Modal
             isOpen={showEditModal}
@@ -1036,21 +1259,21 @@ export default function OwnerShopPage() {
 
       {/* Working hours modal */}
       {showHoursModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl border border-neutral-200 bg-white p-6 shadow-xl dark:border-neutral-800 dark:bg-neutral-950">
-            <h2 className="mb-4 text-xl font-bold text-neutral-900 dark:text-neutral-50">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-neutral-200 bg-white p-5 sm:p-6 shadow-xl dark:border-neutral-800 dark:bg-neutral-950 overflow-hidden flex flex-col max-h-[90vh]">
+            <h2 className="mb-4 text-xl font-bold text-neutral-900 dark:text-neutral-50 shrink-0">
               Modifier les horaires d&apos;ouverture
             </h2>
-            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+            <div className="space-y-3 overflow-y-auto pr-1 flex-1 py-1">
               {DAYS_OF_WEEK.map((dayLabel, i) => {
                 const fh = hoursForm.find((h) => h.dayOfWeek === (i + 1) % 7);
                 if (!fh) return null;
                 return (
                   <div
                     key={fh.dayOfWeek}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 p-3 dark:border-neutral-800 hover:bg-neutral-50/50 dark:hover:bg-neutral-900/10 transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-neutral-200 p-3 dark:border-neutral-800 hover:bg-neutral-50/50 dark:hover:bg-neutral-900/10 transition-colors"
                   >
-                    <label className="flex items-center gap-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-300 cursor-pointer">
+                    <label className="flex items-center gap-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-300 cursor-pointer select-none">
                       <input
                         type="checkbox"
                         checked={fh.isAvailable}
@@ -1067,7 +1290,7 @@ export default function OwnerShopPage() {
                       />
                       {dayLabel}
                     </label>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
                       <input
                         type="time"
                         value={fh.startTime}
@@ -1081,7 +1304,7 @@ export default function OwnerShopPage() {
                             )
                           );
                         }}
-                        className="rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-sm font-medium disabled:opacity-40 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-50"
+                        className="flex-1 sm:flex-initial rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-sm font-medium disabled:opacity-40 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-50 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
                       />
                       <span className="text-neutral-400 font-semibold">&ndash;</span>
                       <input
@@ -1097,14 +1320,14 @@ export default function OwnerShopPage() {
                             )
                           );
                         }}
-                        className="rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-sm font-medium disabled:opacity-40 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-50"
+                        className="flex-1 sm:flex-initial rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-sm font-medium disabled:opacity-40 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-50 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
                       />
                     </div>
                   </div>
                 );
               })}
             </div>
-            <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-neutral-100 dark:border-neutral-800/80">
+            <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-neutral-100 dark:border-neutral-800/80 shrink-0">
               <Button
                 variant="outline"
                 onClick={() => setShowHoursModal(false)}
@@ -1272,6 +1495,139 @@ export default function OwnerShopPage() {
             </div>
           </div>
 
+          {/* Create Amenities Selector */}
+          <div className="border-t border-neutral-200 dark:border-neutral-800/80 pt-4 mt-2">
+            <p className="text-sm font-bold text-neutral-800 dark:text-neutral-200 mb-2">
+              Équipements & Options
+            </p>
+            <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-3">
+              Sélectionnez les équipements disponibles dans votre salon dès sa création.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {AMENITIES_LIST.map((item) => {
+                const isSelected = formData.amenities.includes(item.key);
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => toggleAmenity(item.key)}
+                    className={cn(
+                      "flex items-center gap-2.5 px-4 py-3 rounded-2xl border text-sm font-semibold transition-all duration-200 text-left",
+                      isSelected
+                        ? "border-violet-600 bg-violet-50 text-violet-600 dark:border-violet-400 dark:bg-violet-950/20 dark:text-violet-400 shadow-sm"
+                        : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400 dark:hover:bg-neutral-900"
+                    )}
+                  >
+                    <div className={cn(
+                      "flex h-7 w-7 items-center justify-center rounded-xl border shrink-0",
+                      isSelected
+                        ? "border-violet-300 bg-white dark:border-violet-800 dark:bg-neutral-900"
+                        : "border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900"
+                    )}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Create Shop Gallery Manager */}
+          <div className="border-t border-neutral-200 dark:border-neutral-800/80 pt-4 mt-2">
+            <p className="text-sm font-bold text-neutral-800 dark:text-neutral-200 mb-2">
+              Galerie de photos
+            </p>
+            <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-3">
+              Ajoutez des photos de votre salon pour séduire vos futurs clients !
+            </p>
+            
+            {/* Visual File Uploader Zone */}
+            <div className="mb-4">
+              <label className="relative flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-neutral-300 dark:border-neutral-700 rounded-2xl cursor-pointer bg-neutral-50/50 hover:bg-neutral-50 dark:bg-neutral-900/30 dark:hover:bg-neutral-900/50 transition-all group overflow-hidden">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  disabled={uploading}
+                  className="hidden"
+                />
+                {uploading ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-500 border-t-transparent"></div>
+                    <p className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 animate-pulse">
+                      Téléversement en cours...
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 text-center px-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600 dark:bg-violet-950/20 dark:text-violet-400 border border-violet-100 dark:border-violet-900 group-hover:scale-110 transition-transform">
+                      <Upload className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300">
+                        Cliquez pour téléverser une photo
+                      </p>
+                      <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-0.5">
+                        PNG, JPG, JPEG ou WEBP (Max. 5Mo)
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </label>
+            </div>
+
+            {/* Manual URL input fallback */}
+            <div className="space-y-1.5 mb-2">
+              <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400">
+                Ou ajouter par lien URL :
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  value={newImgUrl}
+                  onChange={(e) => setNewImgUrl(e.target.value)}
+                  placeholder="https://exemple.com/photo-salon.jpg"
+                  className="rounded-xl flex-1"
+                />
+                <Button
+                  type="button"
+                  onClick={addGalleryImage}
+                  className="bg-neutral-900 hover:bg-neutral-800 dark:bg-neutral-50 dark:text-neutral-900 dark:hover:bg-neutral-200 rounded-xl"
+                >
+                  Ajouter
+                </Button>
+              </div>
+            </div>
+
+            {/* Preview and delete gallery URLs */}
+            {formData.images.length > 0 && (
+              <div className="grid grid-cols-2 gap-3 mt-3">
+                {formData.images.map((url, index) => (
+                  <div
+                    key={index}
+                    className="group relative aspect-[4/3] rounded-2xl overflow-hidden border border-neutral-200/50 dark:border-neutral-800/80 bg-neutral-50 dark:bg-neutral-900"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={url}
+                      alt="Miniature"
+                      className="h-full w-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeGalleryImage(index)}
+                      className="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-xl bg-red-600/90 text-white shadow hover:bg-red-500 transition-colors"
+                      title="Supprimer la photo"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="flex justify-end gap-3 pt-4 border-t border-neutral-100 dark:border-neutral-800/80 mt-4">
             <Button
               type="button"
@@ -1282,7 +1638,164 @@ export default function OwnerShopPage() {
               Annuler
             </Button>
             <Button type="submit" disabled={saving} className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-xl shadow-md">
-              {saving ? "Création..." : "Créer"}
+              {saving ? "Création..." : "Créer le salon"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Create Promotion Modal */}
+      <Modal
+        isOpen={showPromoModal}
+        onClose={() => setShowPromoModal(false)}
+        title="Créer une offre promotionnelle"
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleCreatePromotion();
+          }}
+          className="space-y-4 max-h-[85vh] overflow-y-auto px-1 py-1"
+        >
+          <p className="text-xs text-neutral-400 dark:text-neutral-500">
+            Lorsque vous créez cette offre, tous les clients de votre plateforme recevront instantanément une notification sonore et visuelle !
+          </p>
+
+          <div>
+            <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+              Titre de l&apos;offre / promo *
+            </label>
+            <Input
+              value={newPromo.title}
+              onChange={(e) =>
+                setNewPromo({ ...newPromo, title: e.target.value })
+              }
+              required
+              placeholder="Ex: Spécial Weekend - Remise sur la barbe !"
+              className="rounded-xl"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+              Description / Détails
+            </label>
+            <Input
+              value={newPromo.description}
+              onChange={(e) =>
+                setNewPromo({ ...newPromo, description: e.target.value })
+              }
+              placeholder="Ex: Valable sur toutes les prestations coupe + barbe."
+              className="rounded-xl"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                Remise (%) *
+              </label>
+              <Input
+                type="number"
+                value={newPromo.discount}
+                onChange={(e) =>
+                  setNewPromo({ ...newPromo, discount: Number(e.target.value) })
+                }
+                required
+                min={1}
+                max={100}
+                placeholder="20"
+                className="rounded-xl"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                Image promotionnelle (Optionnelle)
+              </label>
+              <label className="relative flex items-center justify-center w-full h-10 border border-dashed border-neutral-300 dark:border-neutral-700 rounded-xl cursor-pointer bg-neutral-50 hover:bg-neutral-100 dark:bg-neutral-900 dark:hover:bg-neutral-850 transition-all overflow-hidden">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePromoFileUpload}
+                  disabled={promoUploading}
+                  className="hidden"
+                />
+                <span className="text-xs font-bold text-neutral-600 dark:text-neutral-400 flex items-center gap-1.5">
+                  {promoUploading ? (
+                    <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
+                  ) : (
+                    <Upload className="h-3.5 w-3.5 text-violet-500" />
+                  )}
+                  {newPromo.imageUrl ? "Image chargée ! ✅" : "Télécharger une photo"}
+                </span>
+              </label>
+            </div>
+          </div>
+
+          {newPromo.imageUrl && (
+            <div className="relative aspect-video rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={newPromo.imageUrl}
+                alt="Promo Preview"
+                className="h-full w-full object-cover"
+              />
+              <button
+                type="button"
+                onClick={() => setNewPromo({ ...newPromo, imageUrl: "" })}
+                className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-xl bg-red-600 text-white shadow hover:bg-red-500 transition-colors"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                Date de début *
+              </label>
+              <Input
+                type="date"
+                value={newPromo.startDate}
+                onChange={(e) =>
+                  setNewPromo({ ...newPromo, startDate: e.target.value })
+                }
+                required
+                className="rounded-xl"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                Date de fin *
+              </label>
+              <Input
+                type="date"
+                value={newPromo.endDate}
+                onChange={(e) =>
+                  setNewPromo({ ...newPromo, endDate: e.target.value })
+                }
+                required
+                className="rounded-xl"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-neutral-100 dark:border-neutral-800/80 mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowPromoModal(false)}
+              className="rounded-xl"
+            >
+              Annuler
+            </Button>
+            <Button
+              type="submit"
+              disabled={savingPromo}
+              className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-xl shadow-md"
+            >
+              {savingPromo ? "Création..." : "Diffuser la promotion"}
             </Button>
           </div>
         </form>

@@ -85,6 +85,53 @@ export default function ShopDetailPage() {
   const sheetRef = React.useRef<HTMLDivElement>(null);
   const today = new Date().toISOString().split("T")[0];
 
+  const [isPromo, setIsPromo] = React.useState(false);
+  const [promoStart, setPromoStart] = React.useState("");
+  const [promoEnd, setPromoEnd] = React.useState("");
+  const [promoDiscount, setPromoDiscount] = React.useState("");
+  const [promoTitle, setPromoTitle] = React.useState("");
+
+  const dateTimeRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const searchParams = new URLSearchParams(window.location.search);
+      const isPromoParam = searchParams.get("promo") === "true";
+      if (isPromoParam) {
+        setIsPromo(true);
+        setPromoStart(searchParams.get("startDate") || "");
+        setPromoEnd(searchParams.get("endDate") || "");
+        setPromoDiscount(searchParams.get("discount") || "");
+        setPromoTitle(searchParams.get("title") || "");
+      }
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (isPromo && shop) {
+      if (!selectedService && shop.services.length > 0) {
+        setSelectedService(shop.services[0].id);
+      }
+      if (!selectedBarber) {
+        setSelectedBarber("any");
+      }
+      if (!selectedDate && promoStart) {
+        const todayStr = new Date().toISOString().split("T")[0];
+        const initialDate = todayStr >= promoStart && todayStr <= promoEnd ? todayStr : promoStart;
+        setSelectedDate(initialDate);
+      }
+    }
+  }, [isPromo, shop, promoStart, promoEnd, selectedService, selectedBarber, selectedDate]);
+
+  React.useEffect(() => {
+    if (isPromo && shop && selectedDate) {
+      const timer = setTimeout(() => {
+        dateTimeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [isPromo, shop, selectedDate]);
+
   React.useEffect(() => {
     if (!params.id) return;
     setLoading(true);
@@ -199,6 +246,10 @@ export default function ShopDetailPage() {
   };
 
   const selectedServiceData = shop?.services.find((s) => s.id === selectedService);
+  const originalPrice = selectedServiceData ? selectedServiceData.price : 0;
+  const discountedPrice = isPromo && promoDiscount 
+    ? originalPrice * (1 - Number(promoDiscount) / 100) 
+    : originalPrice;
 
   if (loading) {
     return (
@@ -240,7 +291,7 @@ export default function ShopDetailPage() {
             <div className="flex items-center justify-between"><span className="text-neutral-500">Salon</span><span className="font-semibold text-neutral-900 dark:text-white">{shop.name}</span></div>
             <div className="flex items-center justify-between"><span className="text-neutral-500">Barbier</span><span className="font-semibold text-neutral-900 dark:text-white">{barber?.user?.name || "—"}</span></div>
             <div className="flex items-center justify-between"><span className="text-neutral-500">Service</span><span className="font-semibold text-neutral-900 dark:text-white">{selectedServiceData?.name || "—"}</span></div>
-            <div className="flex items-center justify-between"><span className="text-neutral-500">Prix</span><span className="font-semibold text-violet-600 dark:text-violet-400">{selectedServiceData ? formatPrice(selectedServiceData.price) : "—"}</span></div>
+            <div className="flex items-center justify-between"><span className="text-neutral-500">Prix</span><span className="font-semibold text-violet-600 dark:text-violet-400">{isPromo ? formatPrice(discountedPrice) : (selectedServiceData ? formatPrice(selectedServiceData.price) : "—")}</span></div>
             <div className="h-px bg-neutral-200 dark:bg-neutral-700 my-2" />
             <div className="flex items-center justify-between"><span className="text-neutral-500">Date</span><span className="font-semibold text-neutral-900 dark:text-white">{formatDate(selectedDate)}</span></div>
             <div className="flex items-center justify-between"><span className="text-neutral-500">Heure</span><span className="font-semibold text-neutral-900 dark:text-white">{formatTime(selectedTime)}</span></div>
@@ -532,13 +583,29 @@ export default function ShopDetailPage() {
         </section>
 
         {/* Step 3: Date & Time */}
-        <section className={`transition-all duration-500 ${selectedService && selectedBarber ? "opacity-100 translate-y-0" : "opacity-50 pointer-events-none translate-y-4"}`}>
+        <section ref={dateTimeRef} className={`transition-all duration-500 ${selectedService && selectedBarber ? "opacity-100 translate-y-0" : "opacity-50 pointer-events-none translate-y-4"}`}>
           <div className="flex items-center gap-3 mb-5">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 font-bold text-sm">3</div>
             <h2 className="text-xl font-bold text-neutral-900 dark:text-white">Date et Heure</h2>
           </div>
-
+ 
           <div className="space-y-6 rounded-3xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900 shadow-sm">
+            {isPromo && promoDiscount && (
+              <div className="rounded-2xl border border-red-200/60 bg-gradient-to-br from-red-500/5 to-orange-500/5 p-4 dark:border-red-900/30 dark:bg-red-950/20 flex items-center gap-3 animate-pulse">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-600 text-white font-black text-sm shadow-md">
+                  -{promoDiscount}%
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-red-600 dark:text-red-400">
+                    Offre Promotionnelle Activable ! 🎉
+                  </h4>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5 leading-relaxed">
+                    Les tarifs réduits s&apos;appliqueront automatiquement pour tout créneau réservé entre le {promoStart} et le {promoEnd}.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div>
               <label className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 flex items-center gap-2 mb-2">
                 <CalendarDays className="h-4 w-4 text-violet-500" /> Date du rendez-vous
@@ -547,11 +614,11 @@ export default function ShopDetailPage() {
                 type="date"
                 value={selectedDate}
                 onChange={(e) => { setSelectedDate(e.target.value); setSelectedTime(""); setAssignedBarberId(""); }}
-                min={today}
+                min={isPromo && promoStart ? promoStart : today}
+                max={isPromo && promoEnd ? promoEnd : undefined}
                 className="flex h-14 w-full rounded-2xl border-2 border-neutral-200 bg-neutral-50 px-4 text-base font-medium transition-colors focus:border-violet-500 focus:outline-none focus:ring-4 focus:ring-violet-500/10 dark:border-neutral-800 dark:bg-neutral-950 dark:text-white"
               />
             </div>
-
             {selectedDate && (
               <div>
                 <label className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 flex items-center gap-2 mb-3">
@@ -701,7 +768,12 @@ export default function ShopDetailPage() {
               size="lg"
               className="shrink-0 rounded-2xl px-8 shadow-lg shadow-violet-600/20 font-bold"
             >
-              Réserver • {selectedServiceData ? formatPrice(selectedServiceData.price) : ""}
+              Réserver • {isPromo ? (
+                <span className="flex items-center gap-2">
+                  <span className="line-through text-xs opacity-60 font-normal">{formatPrice(originalPrice)}</span>
+                  <span>{formatPrice(discountedPrice)}</span>
+                </span>
+              ) : formatPrice(originalPrice)}
             </Button>
           </div>
         </div>
@@ -731,7 +803,16 @@ export default function ShopDetailPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-neutral-900 dark:text-white truncate">{selectedServiceData?.name}</p>
-                  <p className="text-violet-600 font-bold dark:text-violet-400">{selectedServiceData ? formatPrice(selectedServiceData.price) : ""}</p>
+                  <p className="text-violet-600 font-bold dark:text-violet-400 flex items-center gap-2">
+                    {isPromo ? (
+                      <>
+                        <span className="line-through text-xs text-neutral-400 font-normal">{formatPrice(originalPrice)}</span>
+                        <span className="text-red-500 font-black">{formatPrice(discountedPrice)} (-{promoDiscount}%)</span>
+                      </>
+                    ) : (
+                      formatPrice(originalPrice)
+                    )}
+                  </p>
                 </div>
               </div>
 
