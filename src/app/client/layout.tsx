@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ToastProvider } from "@/components/ui/toast";
+import { ToastProvider, useToast } from "@/components/ui/toast";
 import {
   Scissors, Search, Calendar, User, LogOut, Menu, X, Home, MapPin, Bell
 } from "lucide-react";
@@ -18,6 +18,235 @@ const bottomNav = [
   { href: "/client/appointments", label: "Rendez-vous", icon: Calendar },
   { href: "/client/profile", label: "Profil", icon: User },
 ];
+
+function playChimeSound() {
+  if (typeof window === "undefined") return;
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.5);
+  } catch (e) {}
+}
+
+function ClientNotificationBell() {
+  const { toast } = useToast();
+  const [notifications, setNotifications] = React.useState<any[]>([]);
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [pushEnabled, setPushEnabled] = React.useState(false);
+  const notifRef = React.useRef<HTMLDivElement>(null);
+  const seenIds = React.useRef<Set<string>>(new Set());
+  const isFirstLoad = React.useRef(true);
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setPushEnabled(Notification.permission === "granted");
+    }
+  }, []);
+
+  const checkNotifications = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/notifications");
+      if (!res.ok) return;
+      const data = await res.json();
+      const list = data.notifications || [];
+      setNotifications(list);
+
+      if (isFirstLoad.current) {
+        list.forEach((n: any) => seenIds.current.add(n.id));
+        isFirstLoad.current = false;
+        return;
+      }
+
+      let hasNew = false;
+      list.forEach((n: any) => {
+        if (!seenIds.current.has(n.id)) {
+          seenIds.current.add(n.id);
+          hasNew = true;
+          toast(n.message, n.type === "PROMOTION" ? "success" : "info");
+          if ("Notification" in window && Notification.permission === "granted") {
+            new Notification("BarberFlow", { body: n.message });
+          }
+        }
+      });
+
+      if (hasNew) playChimeSound();
+    } catch (e) {}
+  }, [toast]);
+
+  React.useEffect(() => {
+    checkNotifications();
+    const interval = setInterval(checkNotifications, 10000);
+    return () => clearInterval(interval);
+  }, [checkNotifications]);
+
+  React.useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const requestPush = async () => {
+    if (!("Notification" in window)) return;
+    const p = await Notification.requestPermission();
+    setPushEnabled(p === "granted");
+    if (p === "granted") {
+      new Notification("BarberFlow", { body: "Notifications activées avec succès ! 🎉" });
+    }
+  };
+
+  const markAsRead = async (id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    await fetch(`/api/notifications/${id}/read`, { method: "PUT" });
+  };
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
+
+  return (
+    <div className="relative" ref={notifRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="relative flex h-10 w-10 items-center justify-center rounded-full border border-neutral-200/80 bg-white/50 text-neutral-600 shadow-sm hover:bg-neutral-50 dark:border-white/10 dark:bg-black/50 dark:text-neutral-300 dark:hover:bg-white/5 transition-colors"
+      >
+        <Bell className="h-5 w-5" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-white dark:border-neutral-950 bg-red-500 text-[9px] font-bold text-white shadow-sm animate-pulse">
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-3 w-80 sm:w-96 origin-top-right animate-scale-in rounded-3xl border border-neutral-200/50 bg-white/95 backdrop-blur-2xl p-4 shadow-2xl dark:border-white/10 dark:bg-neutral-900/95 overflow-hidden z-50">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-neutral-900 dark:text-white">Notifications</h3>
+            {!pushEnabled && (
+              <button onClick={requestPush} className="text-[10px] font-bold uppercase tracking-wider text-violet-600 dark:text-violet-400 bg-violet-100 dark:bg-violet-500/20 px-2 py-1 rounded-lg hover:bg-violet-200 dark:hover:bg-violet-500/30 transition-colors">
+                Activer Push
+              </button>
+            )}
+          </div>
+          
+          <div className="max-h-[60vh] overflow-y-auto pr-1 space-y-2 hide-scrollbar">
+            {notifications.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-400 mb-3">
+                  <Bell className="h-6 w-6" />
+                </div>
+                <p className="text-sm font-semibold text-neutral-900 dark:text-white">Aucune notification</p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">Vous êtes à jour !</p>
+              </div>
+            ) : (
+              notifications.map((n) => (
+                <div
+                  key={n.id}
+                  onClick={() => !n.isRead && markAsRead(n.id)}
+                  className={`relative flex gap-3 rounded-2xl p-3 transition-colors cursor-pointer ${
+                    n.isRead
+                      ? "bg-transparent hover:bg-neutral-50 dark:hover:bg-white/5"
+                      : "bg-violet-50/50 dark:bg-violet-500/10 hover:bg-violet-50 dark:hover:bg-violet-500/20"
+                  }`}
+                >
+                  {!n.isRead && (
+                    <div className="absolute top-3 right-3 h-2 w-2 rounded-full bg-violet-600 shadow-sm shadow-violet-500/50" />
+                  )}
+                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm ${
+                    n.type === "PROMOTION"
+                      ? "bg-red-100 text-red-600 dark:bg-red-950/50 dark:text-red-400"
+                      : "bg-violet-100 text-violet-600 dark:bg-violet-950/50 dark:text-violet-400"
+                  }`}>
+                    <Bell className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0 pr-4">
+                    <p className={`text-sm leading-snug ${n.isRead ? "text-neutral-600 dark:text-neutral-400" : "font-semibold text-neutral-900 dark:text-white"}`}>
+                      {n.message}
+                    </p>
+                    <span className="text-[10px] text-neutral-400 mt-1.5 block font-medium">
+                      {new Date(n.createdAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GlobalPushPrompt() {
+  const [show, setShow] = React.useState(false);
+
+  React.useEffect(() => {
+    // Only prompt if the user hasn't made a choice yet
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "default") {
+        // Show after a 3 second delay for better UX
+        const t = setTimeout(() => setShow(true), 3000);
+        return () => clearTimeout(t);
+      }
+    }
+  }, []);
+
+  const handleAllow = async () => {
+    if (!("Notification" in window)) return;
+    const p = await Notification.requestPermission();
+    setShow(false);
+    if (p === "granted") {
+      new Notification("BarberFlow", { body: "Génial ! Vous recevrez nos meilleures offres ici. 🎉" });
+    }
+  };
+
+  if (!show) return null;
+
+  return (
+    <div className="fixed bottom-24 left-4 right-4 sm:bottom-6 sm:left-auto sm:right-6 sm:w-96 z-50 animate-slide-up">
+      <div className="rounded-3xl border border-violet-200/50 bg-white/95 backdrop-blur-2xl p-5 shadow-2xl dark:border-violet-900/50 dark:bg-neutral-900/95">
+        <div className="flex gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400 shadow-inner">
+            <Bell className="h-6 w-6 animate-pulse" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-neutral-900 dark:text-white">Ne ratez aucune offre !</h3>
+            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+              Activez les notifications pour recevoir nos promotions exclusives et rappels de rendez-vous en temps réel.
+            </p>
+          </div>
+        </div>
+        <div className="mt-5 flex items-center gap-3">
+          <button 
+            onClick={() => setShow(false)}
+            className="flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800 transition-colors"
+          >
+            Plus tard
+          </button>
+          <button 
+            onClick={handleAllow}
+            className="flex-1 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-violet-500/30 hover:bg-violet-700 transition-colors"
+          >
+            Autoriser
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -103,10 +332,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
             {/* Right: Notifications + Profile */}
             <div className="flex items-center gap-3">
               {/* Notification Bell */}
-              <button className="relative flex h-10 w-10 items-center justify-center rounded-full border border-neutral-200/80 bg-white/50 text-neutral-600 shadow-sm hover:bg-neutral-50 dark:border-white/10 dark:bg-black/50 dark:text-neutral-300 dark:hover:bg-white/5 transition-colors">
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-2.5 right-2.5 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-neutral-950 bg-red-500"></span>
-              </button>
+              <ClientNotificationBell />
 
               {/* Desktop user */}
               <div className="relative hidden sm:block" ref={menuRef}>
@@ -260,6 +486,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         )}
 
         <main className="relative">{children}</main>
+
+        <GlobalPushPrompt />
 
         {/* Mobile bottom nav (Floating) */}
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[90%] max-w-md sm:hidden">
