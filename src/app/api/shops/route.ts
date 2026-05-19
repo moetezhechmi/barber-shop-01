@@ -18,11 +18,44 @@ const createSchema = z.object({
   amenities: z.array(z.string()).optional(),
 });
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const user = await getSession();
+    const searchParams = req.nextUrl.searchParams;
+    const q = searchParams.get("q") || "";
+
     // Only OWNER can see all shops; clients and anonymous users only see available ones
-    const where = (user && user.role === "OWNER") ? {} : { isAvailable: true };
+    let where: any = (user && user.role === "OWNER") ? {} : { isAvailable: true };
+
+    let barbers: any[] = [];
+    if (q) {
+      where = {
+        ...where,
+        OR: [
+          { name: { contains: q, mode: 'insensitive' } },
+          { address: { contains: q, mode: 'insensitive' } },
+          { description: { contains: q, mode: 'insensitive' } },
+          { services: { some: { name: { contains: q, mode: 'insensitive' } } } },
+          { barbers: { some: { user: { name: { contains: q, mode: 'insensitive' } } } } },
+          { promotions: { some: { title: { contains: q, mode: 'insensitive' } } } },
+        ]
+      };
+
+      barbers = await prisma.barber.findMany({
+        where: {
+          isApproved: true,
+          OR: [
+            { user: { name: { contains: q, mode: 'insensitive' } } },
+            { bio: { contains: q, mode: 'insensitive' } }
+          ]
+        },
+        include: {
+          user: { select: { name: true, image: true } },
+          shop: { select: { id: true, name: true, address: true } },
+          reviews: { select: { rating: true } }
+        }
+      });
+    }
 
     const shops = await prisma.shop.findMany({
       where,
@@ -30,8 +63,9 @@ export async function GET() {
         _count: { select: { barbers: true } },
       },
     });
-    return NextResponse.json({ shops });
-  } catch {
+    return NextResponse.json({ shops, barbers });
+  } catch (error) {
+    console.error("Search error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -63,18 +63,45 @@ export default function ShopDetailPage() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
-  const [selectedService, setSelectedService] = React.useState("");
-  const [selectedBarber, setSelectedBarber] = React.useState(""); // "any" or barber.id
-  const [selectedDate, setSelectedDate] = React.useState("");
-  
+  const [booking, setBooking] = React.useState({
+    service: "",
+    barber: "",
+    date: "",
+    time: "",
+    assignedBarberId: "",
+    notes: ""
+  });
+
+  const selectedService = booking.service;
+  const selectedBarber = booking.barber;
+  const selectedDate = booking.date;
+  const selectedTime = booking.time;
+  const assignedBarberId = booking.assignedBarberId;
+  const notes = booking.notes;
+
+  const handleServiceSelect = React.useCallback((serviceId: string) => {
+    setBooking(prev => ({ ...prev, service: serviceId }));
+  }, []);
+
+  const handleBarberSelect = React.useCallback((barberId: string) => {
+    setBooking(prev => ({ ...prev, barber: barberId, time: "", assignedBarberId: "" }));
+  }, []);
+
+  const handleDateSelect = React.useCallback((date: string) => {
+    setBooking(prev => ({ ...prev, date, time: "", assignedBarberId: "" }));
+  }, []);
+
+  const handleTimeSelect = React.useCallback((time: string, barberId: string) => {
+    setBooking(prev => ({ ...prev, time, assignedBarberId: barberId }));
+  }, []);
+
+  const handleNotesChange = React.useCallback((notes: string) => {
+    setBooking(prev => ({ ...prev, notes }));
+  }, []);
+
   // Array of { time, barberId }
   const [availableSlots, setAvailableSlots] = React.useState<{ time: string; barberId: string }[]>([]);
   const [slotsLoading, setSlotsLoading] = React.useState(false);
-  
-  const [selectedTime, setSelectedTime] = React.useState("");
-  const [assignedBarberId, setAssignedBarberId] = React.useState("");
-  
-  const [notes, setNotes] = React.useState("");
   const [showBookingSheet, setShowBookingSheet] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
   const [confirmation, setConfirmation] = React.useState<any>(null);
@@ -109,19 +136,26 @@ export default function ShopDetailPage() {
 
   React.useEffect(() => {
     if (isPromo && shop) {
-      if (!selectedService && shop.services.length > 0) {
-        setSelectedService(shop.services[0].id);
-      }
-      if (!selectedBarber) {
-        setSelectedBarber("any");
-      }
-      if (!selectedDate && promoStart) {
-        const todayStr = new Date().toISOString().split("T")[0];
-        const initialDate = todayStr >= promoStart && todayStr <= promoEnd ? todayStr : promoStart;
-        setSelectedDate(initialDate);
-      }
+      setBooking(prev => {
+        let updated = { ...prev };
+        let changed = false;
+        if (!prev.service && shop.services.length > 0) {
+          updated.service = shop.services[0].id;
+          changed = true;
+        }
+        if (!prev.barber) {
+          updated.barber = "any";
+          changed = true;
+        }
+        if (!prev.date && promoStart) {
+          const todayStr = new Date().toISOString().split("T")[0];
+          updated.date = todayStr >= promoStart && todayStr <= promoEnd ? todayStr : promoStart;
+          changed = true;
+        }
+        return changed ? updated : prev;
+      });
     }
-  }, [isPromo, shop, promoStart, promoEnd, selectedService, selectedBarber, selectedDate]);
+  }, [isPromo, shop, promoStart, promoEnd]);
 
   React.useEffect(() => {
     if (isPromo && shop && selectedDate) {
@@ -156,8 +190,6 @@ export default function ShopDetailPage() {
       return;
     }
     setSlotsLoading(true);
-    setSelectedTime("");
-    setAssignedBarberId("");
 
     const fetchSlots = async () => {
       try {
@@ -206,10 +238,7 @@ export default function ShopDetailPage() {
     return barber.reviews.reduce((s, r) => s + r.rating, 0) / barber.reviews.length;
   };
 
-  const handleTimeSelect = (time: string, barberId: string) => {
-    setSelectedTime(time);
-    setAssignedBarberId(barberId);
-  };
+
 
   const handleBook = async () => {
     if (!selectedService || !selectedBarber || !selectedDate || !selectedTime || !assignedBarberId) {
@@ -245,21 +274,20 @@ export default function ShopDetailPage() {
     }
   };
 
-  const selectedServiceData = shop?.services.find((s) => s.id === selectedService);
+  const selectedServiceData = React.useMemo(() => shop?.services.find((s) => s.id === selectedService), [shop, selectedService]);
   const originalPrice = selectedServiceData ? selectedServiceData.price : 0;
-  const discountedPrice = isPromo && promoDiscount 
-    ? originalPrice * (1 - Number(promoDiscount) / 100) 
-    : originalPrice;
+  const discountedPrice = React.useMemo(() => {
+    return isPromo && promoDiscount 
+      ? originalPrice * (1 - Number(promoDiscount) / 100) 
+      : originalPrice;
+  }, [isPromo, promoDiscount, originalPrice]);
 
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center bg-neutral-50 dark:bg-neutral-950">
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative">
-            <div className="h-16 w-16 rounded-2xl border-4 border-violet-200 border-t-violet-600 animate-spin dark:border-violet-900 dark:border-t-violet-400" />
-            <Scissors className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-6 w-6 text-violet-600 dark:text-violet-400 opacity-50" />
-          </div>
-          <p className="text-sm font-medium text-neutral-500 animate-pulse">Chargement du salon...</p>
+      <div className="flex min-h-screen items-center justify-center bg-neutral-50 dark:bg-neutral-950">
+        <div className="relative">
+          <div className="h-24 w-24 rounded-[2rem] border-[6px] border-violet-200 border-t-violet-600 animate-[spin_1.5s_linear_infinite] dark:border-violet-900 dark:border-t-violet-400 shadow-xl shadow-violet-500/20" />
+          <Scissors className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-8 w-8 text-violet-600 dark:text-violet-400 opacity-90 animate-pulse" />
         </div>
       </div>
     );
@@ -480,10 +508,7 @@ export default function ShopDetailPage() {
               return (
                 <button
                   key={service.id}
-                  onClick={() => {
-                    setSelectedService(service.id);
-                    // Reset subsequent steps if we want, but it's okay to keep them
-                  }}
+                  onClick={() => handleServiceSelect(service.id)}
                   className={`relative flex items-start gap-4 rounded-2xl border-2 p-4 text-left transition-all duration-300 ${
                     isSelected
                       ? "border-violet-600 bg-violet-50 shadow-md shadow-violet-500/10 dark:border-violet-500 dark:bg-violet-900/20"
@@ -521,7 +546,7 @@ export default function ShopDetailPage() {
           <div className="flex gap-4 overflow-x-auto pb-4 px-1 -mx-1 snap-x hide-scrollbar">
             {/* "Any Barber" Option */}
             <button
-              onClick={() => { setSelectedBarber("any"); setSelectedTime(""); }}
+              onClick={() => handleBarberSelect("any")}
               className={`snap-start shrink-0 w-36 rounded-2xl border-2 p-4 text-center transition-all duration-300 ${
                 selectedBarber === "any"
                   ? "border-violet-600 bg-violet-50 shadow-md shadow-violet-500/10 dark:border-violet-500 dark:bg-violet-900/20"
@@ -544,7 +569,7 @@ export default function ShopDetailPage() {
               return (
                 <button
                   key={barber.id}
-                  onClick={() => { setSelectedBarber(barber.id); setSelectedTime(""); }}
+                  onClick={() => handleBarberSelect(barber.id)}
                   className={`snap-start shrink-0 w-36 rounded-2xl border-2 p-4 text-center transition-all duration-300 flex flex-col items-center ${
                     isSelected
                       ? "border-violet-600 bg-violet-50 shadow-md shadow-violet-500/10 dark:border-violet-500 dark:bg-violet-900/20"
@@ -613,7 +638,7 @@ export default function ShopDetailPage() {
               <input
                 type="date"
                 value={selectedDate}
-                onChange={(e) => { setSelectedDate(e.target.value); setSelectedTime(""); setAssignedBarberId(""); }}
+                onChange={(e) => handleDateSelect(e.target.value)}
                 min={isPromo && promoStart ? promoStart : today}
                 max={isPromo && promoEnd ? promoEnd : undefined}
                 className="flex h-14 w-full rounded-2xl border-2 border-neutral-200 bg-neutral-50 px-4 text-base font-medium transition-colors focus:border-violet-500 focus:outline-none focus:ring-4 focus:ring-violet-500/10 dark:border-neutral-800 dark:bg-neutral-950 dark:text-white"
@@ -626,9 +651,8 @@ export default function ShopDetailPage() {
                 </label>
                 
                 {slotsLoading ? (
-                  <div className="flex flex-col items-center justify-center py-8 space-y-3">
-                    <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
-                    <p className="text-sm text-neutral-500">Recherche des disponibilités...</p>
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-10 w-10 animate-[spin_1.5s_linear_infinite] text-violet-600 dark:text-violet-400" />
                   </div>
                 ) : availableSlots.length > 0 ? (
                   <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
@@ -680,9 +704,8 @@ export default function ShopDetailPage() {
           </div>
 
           {reviewsLoading ? (
-            <div className="flex flex-col items-center justify-center py-8 gap-2">
-              <Loader2 className="h-6 w-6 animate-spin text-violet-500" />
-              <p className="text-xs text-neutral-500 animate-pulse">Chargement des avis...</p>
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-[spin_1.5s_linear_infinite] text-violet-500" />
             </div>
           ) : reviews.length === 0 ? (
             <div className="text-center py-10 px-4">
@@ -838,7 +861,7 @@ export default function ShopDetailPage() {
               <label className="mb-2 block text-sm font-semibold text-neutral-700 dark:text-neutral-300">Un mot pour le barbier ? <span className="text-neutral-400 font-normal">(optionnel)</span></label>
               <textarea
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                onChange={(e) => handleNotesChange(e.target.value)}
                 rows={3}
                 className="flex w-full rounded-2xl border-2 border-neutral-200 bg-white px-4 py-3 text-sm transition-colors focus:border-violet-500 focus:outline-none focus:ring-4 focus:ring-violet-500/10 dark:border-neutral-800 dark:bg-neutral-950 dark:text-white resize-none"
                 placeholder="Ex: J'aimerais garder un peu de longueur..."
@@ -930,8 +953,7 @@ export default function ShopDetailPage() {
             <div className="flex flex-col gap-2 pt-4 border-t border-neutral-100 dark:border-neutral-800">
               <Button
                 onClick={() => {
-                  setSelectedBarber(activeBarberProfile.id);
-                  setSelectedTime("");
+                  handleBarberSelect(activeBarberProfile.id);
                   setActiveBarberProfile(null);
                   toast(`Barbier ${activeBarberProfile.user.name} sélectionné !`, "success");
                 }}

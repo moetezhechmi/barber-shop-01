@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Search, MapPin, Scissors, ArrowRight, Sparkles, Star } from "lucide-react";
+import { Search, MapPin, Scissors, ArrowRight, Sparkles, Star, Loader2 } from "lucide-react";
 
 interface Shop {
   id: string;
@@ -13,10 +13,20 @@ interface Shop {
   barbers?: { id: string }[];
 }
 
+interface BarberMatch {
+  id: string;
+  bio: string | null;
+  user: { name: string; image: string | null };
+  shop: { id: string; name: string; address: string } | null;
+  reviews: { rating: number }[];
+}
+
 export default function ClientSearchPage() {
   const [query, setQuery] = React.useState("");
   const [shops, setShops] = React.useState<Shop[]>([]);
+  const [barbers, setBarbers] = React.useState<BarberMatch[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [isSearching, setIsSearching] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   interface ClientPromotion {
@@ -45,7 +55,7 @@ export default function ClientSearchPage() {
   }, []);
 
   const fetchShops = React.useCallback(async (q: string) => {
-    setLoading(true);
+    setIsSearching(true);
     setError(null);
     try {
       const url = q.trim()
@@ -55,10 +65,13 @@ export default function ClientSearchPage() {
       if (!res.ok) throw new Error("Erreur lors du chargement");
       const data = await res.json();
       setShops(Array.isArray(data.shops) ? data.shops : Array.isArray(data) ? data : []);
+      setBarbers(Array.isArray(data.barbers) ? data.barbers : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue");
       setShops([]);
+      setBarbers([]);
     } finally {
+      setIsSearching(false);
       setLoading(false);
     }
   }, []);
@@ -88,8 +101,12 @@ export default function ClientSearchPage() {
       <div className="relative max-w-3xl group">
         <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-violet-500/30 to-indigo-500/30 opacity-50 blur-xl transition-all duration-500 group-hover:opacity-100 group-focus-within:opacity-100" />
         <div className="relative flex items-center bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl border border-neutral-200/50 dark:border-neutral-800/50 rounded-2xl shadow-lg p-2 transition-transform duration-300 group-focus-within:scale-[1.02]">
-          <div className="flex items-center justify-center h-12 w-12 bg-violet-100 dark:bg-violet-900/30 rounded-xl ml-1">
-            <Search className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+          <div className="flex items-center justify-center h-12 w-12 bg-violet-100 dark:bg-violet-900/30 rounded-xl ml-1 transition-all">
+            {isSearching ? (
+              <Loader2 className="h-5 w-5 text-violet-600 dark:text-violet-400 animate-spin" />
+            ) : (
+              <Search className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+            )}
           </div>
           <input
             value={query}
@@ -160,6 +177,59 @@ export default function ClientSearchPage() {
         </div>
       )}
 
+      {/* Barbers Found */}
+      {barbers.length > 0 && (
+        <div className="space-y-4 animate-slide-up">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400">
+              <Scissors className="h-4 w-4" />
+            </div>
+            <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
+              Barbiers Correspondants
+            </h2>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {barbers.map((barber) => (
+              <Link
+                key={barber.id}
+                href={`/client/shops/${barber.shop?.id || ''}`}
+                className="group flex items-center gap-4 rounded-3xl border border-neutral-200/60 dark:border-neutral-800/60 bg-white dark:bg-neutral-900 p-4 transition-all duration-300 hover:-translate-y-1 hover:border-indigo-300 dark:hover:border-indigo-700/50 hover:shadow-lg shadow-sm"
+              >
+                {barber.user.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={barber.user.image}
+                    alt={barber.user.name}
+                    className="h-16 w-16 rounded-2xl object-cover shadow-sm border border-neutral-100 dark:border-neutral-800"
+                  />
+                ) : (
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-400 to-violet-600 text-xl font-bold text-white shadow-sm">
+                    {barber.user.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base font-bold text-neutral-900 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                    {barber.user.name}
+                  </h3>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-0.5 flex items-center gap-1">
+                    <MapPin className="h-3 w-3 shrink-0" /> <span className="truncate">{barber.shop?.name || "Indépendant"}</span>
+                  </p>
+                  {barber.reviews && barber.reviews.length > 0 && (
+                    <div className="mt-1.5 flex items-center gap-1 text-[10px] font-bold text-amber-500">
+                      <Star className="h-3 w-3 fill-amber-500" />
+                      {(barber.reviews.reduce((a, b) => a + b.rating, 0) / barber.reviews.length).toFixed(1)}
+                    </div>
+                  )}
+                </div>
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-400 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                  <ArrowRight className="h-4 w-4" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Loading state */}
       {loading && (
         <div className="flex flex-col items-center justify-center py-32 space-y-4 animate-pulse">
@@ -179,7 +249,7 @@ export default function ClientSearchPage() {
       )}
 
       {/* Empty states */}
-      {!loading && shops.length === 0 && !error && (
+      {!loading && shops.length === 0 && barbers.length === 0 && !error && (
         <div className="flex flex-col items-center justify-center py-32 text-center bg-white/40 dark:bg-neutral-900/40 backdrop-blur-md rounded-3xl border border-neutral-200/50 dark:border-neutral-800/50 shadow-xl">
           <div className="h-20 w-20 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center mb-6">
             {query.trim() ? (
@@ -200,6 +270,16 @@ export default function ClientSearchPage() {
       )}
 
       {/* Grid of shops */}
+      {shops.length > 0 && (
+        <div className="flex items-center gap-2 mt-4">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-950/30 text-violet-600 dark:text-violet-400">
+            <MapPin className="h-4 w-4" />
+          </div>
+          <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
+            Salons Correspondants
+          </h2>
+        </div>
+      )}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {shops.map((shop, index) => (
           <Link 
