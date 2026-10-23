@@ -592,7 +592,10 @@ export default function ShopDetailPage() {
                   const canPrev = viewMonthStart > minDateStr.slice(0, 7) + "-01";
                   const canNext = viewMonthEnd < maxDateStr;
                   
-                  const days = Array.from({ length: firstDay }, () => null).concat(Array.from({ length: daysInMonth }, (_, i) => i + 1));
+                  const days: (number | null)[] = [
+                    ...Array.from({ length: firstDay }, () => null),
+                    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+                  ];
                   
                   return (
                     <div className="bg-gray-50 rounded-2xl p-4">
