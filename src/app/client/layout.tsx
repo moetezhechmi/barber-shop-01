@@ -4,10 +4,11 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ToastProvider, useToast } from "@/components/ui/toast";
-import { MapPin, Calendar, User, LogOut, X, Bell, Scissors } from "lucide-react";
+import { MapPin, Calendar, User, LogOut, X, Bell, Scissors, Tag } from "lucide-react";
 
 const bottomNav = [
   { href: "/client/search",       label: "Accueil",      icon: MapPin },
+  { href: "/client/promotions",   label: "Offres",       icon: Tag, isPromo: true },
   { href: "/client/appointments", label: "Rendez-vous",  icon: Calendar },
   { href: "/client/profile",      label: "Profil",       icon: User },
 ];
@@ -203,8 +204,14 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                 <Link key={item.href} href={item.href}
                   className="flex-1 flex flex-col items-center justify-center gap-1 py-2.5 relative active:scale-95 transition-transform">
                   {active && <span className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 bg-violet-600 rounded-full" />}
-                  <div className={`flex h-8 w-8 items-center justify-center rounded-xl transition-colors ${active ? "bg-violet-50" : ""}`}>
+                  <div className={`relative flex h-8 w-8 items-center justify-center rounded-xl transition-colors ${active ? "bg-violet-50" : ""}`}>
                     <Icon className={`h-5 w-5 transition-colors ${active ? "text-violet-600" : "text-gray-400"}`} strokeWidth={active ? 2.5 : 1.8} />
+                    {item.isPromo && (
+                      <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                      </span>
+                    )}
                   </div>
                   <span className={`text-[10px] font-bold transition-colors ${active ? "text-violet-600" : "text-gray-400"}`}>{item.label}</span>
                 </Link>

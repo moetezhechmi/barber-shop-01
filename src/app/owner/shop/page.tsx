@@ -1042,7 +1042,7 @@ export default function OwnerShopPage() {
           </Card>
 
           {/* ── ENHANCED PROMOTIONS & PACKS MANAGEMENT ── */}
-          <Card className="border border-neutral-200 dark:border-neutral-800 shadow-sm mt-8 overflow-hidden">
+          <Card id="promotions" className="border border-neutral-200 dark:border-neutral-800 shadow-sm mt-8 overflow-hidden">
             <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/20">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500 text-white shadow-md">

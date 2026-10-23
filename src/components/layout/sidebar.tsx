@@ -13,6 +13,7 @@ import {
   Clock,
   Search,
   Image,
+  Tag,
   type LucideIcon,
 } from "lucide-react";
 
@@ -26,6 +27,7 @@ export const navMap: Record<string, NavItem[]> = {
   owner: [
     { label: "Dashboard", href: "/owner/dashboard", icon: LayoutDashboard },
     { label: "Mon Salon", href: "/owner/shop", icon: Store },
+    { label: "Offres", href: "/owner/promotions", icon: Tag },
     { label: "Barbiers", href: "/owner/barbers", icon: Users },
     { label: "Services", href: "/owner/services", icon: Scissors },
     { label: "Rendez-vous", href: "/owner/appointments", icon: Calendar },
@@ -46,6 +48,7 @@ export const navMap: Record<string, NavItem[]> = {
   ],
   client: [
     { label: "Rechercher", href: "/client/search", icon: Search },
+    { label: "Offres", href: "/client/promotions", icon: Tag },
     {
       label: "Mes Rendez-vous",
       href: "/client/appointments",

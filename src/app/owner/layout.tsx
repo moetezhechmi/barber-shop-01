@@ -33,8 +33,8 @@ export default function OwnerLayout({
         </main>
 
         {/* Mobile bottom nav (Floating) */}
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[95%] max-w-md lg:hidden">
-          <nav className="flex items-center justify-between px-6 rounded-full bg-white/90 dark:bg-neutral-900/90 backdrop-blur-xl border border-neutral-200/50 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] py-2">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[96%] max-w-lg lg:hidden">
+          <nav className="flex items-center justify-between px-2 sm:px-4 rounded-full bg-white/90 dark:bg-neutral-900/90 backdrop-blur-xl border border-neutral-200/50 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] py-2">
             {ownerNav.map((item) => {
               const Icon = item.icon;
               const active = pathname === item.href;
@@ -42,7 +42,7 @@ export default function OwnerLayout({
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`relative flex flex-col items-center justify-center w-14 h-12 rounded-2xl transition-all duration-300 ${
+                  className={`relative flex flex-col items-center justify-center flex-1 min-w-[48px] h-12 rounded-2xl transition-all duration-300 ${
                     active
                       ? "text-violet-600 dark:text-violet-400"
                       : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200"
@@ -52,7 +52,7 @@ export default function OwnerLayout({
                     <div className="absolute inset-0 bg-violet-100/50 dark:bg-violet-500/20 rounded-2xl -z-10 animate-scale-in" />
                   )}
                   <Icon className={`h-5 w-5 mb-0.5 transition-transform duration-300 ${active ? "scale-110" : ""}`} />
-                  <span className={`text-[9px] font-semibold transition-all duration-300 ${active ? "opacity-100" : "opacity-70"} text-center leading-tight`}>
+                  <span className={`text-[9px] font-semibold transition-all duration-300 ${active ? "opacity-100" : "opacity-70"} text-center leading-tight truncate px-0.5`}>
                     {item.label}
                   </span>
                 </Link>
