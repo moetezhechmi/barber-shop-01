@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Store, Pencil, Plus, Clock, Shield, ShieldAlert, Sparkles, Trash2, PlusCircle, Image as ImageIcon, Upload, Tag, Megaphone } from "lucide-react";
+import { Store, Pencil, Plus, Clock, Shield, ShieldAlert, Sparkles, Trash2, PlusCircle, Image as ImageIcon, Upload, Tag, Megaphone, Eye, Calendar, ExternalLink, Flame, CheckCircle, Percent, Gift, Bell, Heart } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -217,7 +217,7 @@ export default function OwnerShopPage() {
   >([]);
   const [savingHours, setSavingHours] = React.useState(false);
 
-  // Promotions State
+  // Promotions State & Templates
   interface PromotionData {
     id: string;
     title: string;
@@ -242,6 +242,182 @@ export default function OwnerShopPage() {
   });
   const [savingPromo, setSavingPromo] = React.useState(false);
   const [promoUploading, setPromoUploading] = React.useState(false);
+  const [promoFilter, setPromoFilter] = React.useState<"all" | "active" | "expired">("all");
+  const [selectedTemplateId, setSelectedTemplateId] = React.useState<string | null>(null);
+
+  interface PromotionTemplate {
+    id: string;
+    name: string;
+    title: string;
+    description: string;
+    discount: number;
+    durationDays: number;
+    icon: string;
+    badge: string;
+    gradient: string;
+  }
+
+  const PROMO_TEMPLATES: PromotionTemplate[] = [
+    {
+      id: "mariage",
+      name: "Pack Marié / Mariage 💍",
+      title: "Pack Marié VIP 💍",
+      description: "Coiffure de marié, taille & soin barbe d'exception, soin visage relaxant & finition au rasoir.",
+      discount: 25,
+      durationDays: 30,
+      icon: "💍",
+      badge: "Cérémonie & VIP",
+      gradient: "from-amber-500 via-orange-500 to-rose-500",
+    },
+    {
+      id: "etudiant",
+      name: "Tarif Étudiant 🎓",
+      title: "Offre Étudiants & Jeunes 🎓",
+      description: "Coupe stylée + contours soignés pour lycéens et étudiants.",
+      discount: 20,
+      durationDays: 30,
+      icon: "🎓",
+      badge: "Populaire",
+      gradient: "from-blue-500 to-indigo-600",
+    },
+    {
+      id: "weekend",
+      name: "Spécial Weekend ⚡",
+      title: "Spécial Weekend Coupe + Barbe ⚡",
+      description: "Profitez de notre formule complète coupe tendance et taille de barbe soignée.",
+      discount: 15,
+      durationDays: 7,
+      icon: "⚡",
+      badge: "Flash",
+      gradient: "from-violet-600 to-purple-600",
+    },
+    {
+      id: "fete",
+      name: "Fêtes & Aïd 🌙",
+      title: "Offre Spéciale Fêtes & Célébrations 🌙",
+      description: "Préparez-vous pour les grandes occasions avec nos soins d'excellence.",
+      discount: 30,
+      durationDays: 14,
+      icon: "🌙",
+      badge: "Prestige",
+      gradient: "from-emerald-500 to-teal-700",
+    },
+    {
+      id: "pere-fils",
+      name: "Duo Père & Fils 👑",
+      title: "Formule Duo Père & Fils 👑",
+      description: "Un moment complice chez votre barbier : 2 coupes complètes au tarif préférentiel.",
+      discount: 25,
+      durationDays: 30,
+      icon: "👑",
+      badge: "Duo & Famille",
+      gradient: "from-amber-600 to-orange-600",
+    },
+    {
+      id: "nouveau-client",
+      name: "Nouveau Client 🎉",
+      title: "Offre Découverte - Bienvenue 🎉",
+      description: "Découvrez notre salon et profitez d'une remise exclusive sur votre première visite.",
+      discount: 20,
+      durationDays: 30,
+      icon: "🎉",
+      badge: "Nouveau",
+      gradient: "from-rose-500 to-pink-600",
+    },
+  ];
+
+  function getTodayDate() {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  function getFutureDate(days: number) {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  function formatPromoDate(dStr: string) {
+    if (!dStr) return "";
+    const clean = dStr.split("T")[0];
+    try {
+      return new Date(clean + "T00:00:00").toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+    } catch {
+      return clean;
+    }
+  }
+
+  function getDaysRemaining(endDateStr: string) {
+    if (!endDateStr) return null;
+    const clean = endDateStr.split("T")[0];
+    const now = new Date();
+    const end = new Date(clean + "T23:59:59");
+    const diffMs = end.getTime() - now.getTime();
+    return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  }
+
+  function applyPromoTemplate(template: PromotionTemplate) {
+    const today = getTodayDate();
+    const end = getFutureDate(template.durationDays);
+    setNewPromo({
+      title: template.title,
+      description: template.description,
+      discount: template.discount,
+      startDate: today,
+      endDate: end,
+      imageUrl: "",
+    });
+    setSelectedTemplateId(template.id);
+    setShowPromoModal(true);
+  }
+
+  function openNewPromoModal() {
+    const today = getTodayDate();
+    const end = getFutureDate(30);
+    setNewPromo({
+      title: "",
+      description: "",
+      discount: 20,
+      startDate: today,
+      endDate: end,
+      imageUrl: "",
+    });
+    setSelectedTemplateId(null);
+    setShowPromoModal(true);
+  }
+
+  const todayStr = getTodayDate();
+
+  const activePromotions = React.useMemo(() => {
+    return promotions.filter((p) => {
+      if (p.isActive === false) return false;
+      const end = (p.endDate || "").split("T")[0];
+      return !end || end >= todayStr;
+    });
+  }, [promotions, todayStr]);
+
+  const expiredPromotions = React.useMemo(() => {
+    return promotions.filter((p) => {
+      const end = (p.endDate || "").split("T")[0];
+      return end && end < todayStr;
+    });
+  }, [promotions, todayStr]);
+
+  const filteredPromotions = React.useMemo(() => {
+    if (promoFilter === "active") return activePromotions;
+    if (promoFilter === "expired") return expiredPromotions;
+    return promotions;
+  }, [promoFilter, promotions, activePromotions, expiredPromotions]);
 
   async function loadShop() {
     try {
@@ -372,6 +548,7 @@ export default function OwnerShopPage() {
         endDate: "",
         imageUrl: "",
       });
+      setSelectedTemplateId(null);
       toast("Offre promotionnelle créée et envoyée aux clients ! 🎉", "success");
     } catch (err) {
       toast(
@@ -693,7 +870,7 @@ export default function OwnerShopPage() {
                       href={shop.facebook.startsWith("http") ? shop.facebook : `https://${shop.facebook}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-blue-500/10 bg-blue-500/5 text-blue-500 hover:bg-blue-500/10 transition-colors text-sm font-semibold shadow-sm"
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-blue-500/10 bg-blue-50/5 text-blue-500 hover:bg-blue-500/10 transition-colors text-sm font-semibold shadow-sm"
                     >
                       <FacebookIcon className="h-4 w-4" />
                       <span>Facebook</span>
@@ -709,7 +886,7 @@ export default function OwnerShopPage() {
                       href={shop.instagram.startsWith("http") ? shop.instagram : `https://${shop.instagram}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-pink-500/10 bg-pink-500/5 text-pink-500 hover:bg-pink-500/10 transition-colors text-sm font-semibold shadow-sm"
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-pink-500/10 bg-pink-50/5 text-pink-500 hover:bg-pink-500/10 transition-colors text-sm font-semibold shadow-sm"
                     >
                       <InstagramIcon className="h-4 w-4" />
                       <span>Instagram</span>
@@ -864,90 +1041,280 @@ export default function OwnerShopPage() {
             </CardContent>
           </Card>
 
-          {/* Promotions Card */}
-          <Card className="border border-neutral-200 dark:border-neutral-800 shadow-sm mt-8">
-            <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-neutral-100 dark:border-neutral-800">
-              <div className="flex items-center gap-2">
-                <Megaphone className="h-5 w-5 text-violet-600 dark:text-violet-400" />
-                <CardTitle className="text-lg font-bold">Offres & Promotions</CardTitle>
-              </div>
-              <Button
-                onClick={() => setShowPromoModal(true)}
-                size="sm"
-                className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-xl shadow-md"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Nouvelle Promo
-              </Button>
-            </CardHeader>
-            <CardContent className="pt-6">
-              {promotions.length === 0 ? (
-                <div className="text-center py-10 text-neutral-500 dark:text-neutral-400">
-                  <Tag className="h-10 w-10 text-neutral-300 dark:text-neutral-700 mx-auto mb-3" />
-                  <p className="text-sm font-semibold">Aucune promotion active</p>
-                  <p className="text-xs text-neutral-400 dark:text-neutral-50 mt-1">
-                    Créez une offre spéciale pour attirer des clients et les notifier instantanément.
+          {/* ── ENHANCED PROMOTIONS & PACKS MANAGEMENT ── */}
+          <Card className="border border-neutral-200 dark:border-neutral-800 shadow-sm mt-8 overflow-hidden">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/20">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500 text-white shadow-md">
+                  <Megaphone className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-lg font-bold text-neutral-900 dark:text-neutral-50">
+                      Offres & Promotions
+                    </CardTitle>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                      <Sparkles className="h-3 w-3" />
+                      {promotions.length} offre{promotions.length > 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+                    Proposez des packs spéciaux (Pack Marié, Étudiants, Fêtes) pour attirer et fidéliser vos clients.
                   </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href={`/client/shops/${shop.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 text-xs font-semibold shadow-sm transition-colors"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Voir côté client
+                </a>
+                <Button
+                  onClick={openNewPromoModal}
+                  size="sm"
+                  className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-xl shadow-md text-xs font-bold px-4"
+                >
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  Nouvelle Offre
+                </Button>
+              </div>
+            </CardHeader>
+
+            <CardContent className="pt-6 space-y-6">
+              {/* Quick Template Launcher */}
+              <div className="rounded-2xl p-4 bg-gradient-to-r from-violet-50/60 via-indigo-50/40 to-amber-50/60 dark:from-neutral-900 dark:via-neutral-900 dark:to-neutral-850 border border-violet-100/80 dark:border-neutral-800">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Flame className="h-4 w-4 text-orange-500 animate-pulse" />
+                    <span className="text-xs font-black uppercase tracking-wider text-neutral-800 dark:text-neutral-200">
+                      Créer en 1 clic à partir de nos modèles populaires :
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-neutral-500 font-medium hidden sm:inline">
+                    Prêt à l'emploi
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                  {PROMO_TEMPLATES.map((tmpl) => (
+                    <button
+                      key={tmpl.id}
+                      type="button"
+                      onClick={() => applyPromoTemplate(tmpl)}
+                      className="group relative flex flex-col items-start p-3 rounded-xl bg-white dark:bg-neutral-950 border border-neutral-200/80 dark:border-neutral-800 hover:border-violet-500 dark:hover:border-violet-500 hover:shadow-md transition-all active:scale-95 text-left cursor-pointer"
+                    >
+                      <div className="flex items-center justify-between w-full mb-1.5">
+                        <span className="text-xl">{tmpl.icon}</span>
+                        <span className="text-[10px] font-black bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400 px-1.5 py-0.5 rounded-md">
+                          -{tmpl.discount}%
+                        </span>
+                      </div>
+                      <p className="text-xs font-bold text-neutral-900 dark:text-neutral-100 line-clamp-1 group-hover:text-violet-600 transition-colors">
+                        {tmpl.name}
+                      </p>
+                      <p className="text-[10px] text-neutral-400 dark:text-neutral-500 line-clamp-1 mt-0.5">
+                        {tmpl.durationDays} jours
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Filter Tabs */}
+              {promotions.length > 0 && (
+                <div className="flex items-center justify-between border-b border-neutral-200 dark:border-neutral-800 pb-3">
+                  <div className="flex items-center gap-1.5">
+                    {[
+                      { key: "all", label: "Toutes", count: promotions.length },
+                      { key: "active", label: "En cours", count: activePromotions.length },
+                      { key: "expired", label: "Expirées", count: expiredPromotions.length },
+                    ].map((tabItem) => (
+                      <button
+                        key={tabItem.key}
+                        onClick={() => setPromoFilter(tabItem.key as any)}
+                        className={cn(
+                          "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
+                          promoFilter === tabItem.key
+                            ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 shadow-sm"
+                            : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-850"
+                        )}
+                      >
+                        <span>{tabItem.label}</span>
+                        <span className={cn(
+                          "px-1.5 py-0.2 rounded-full text-[10px]",
+                          promoFilter === tabItem.key
+                            ? "bg-white/20 dark:bg-neutral-900/20"
+                            : "bg-neutral-200 dark:bg-neutral-800"
+                        )}>
+                          {tabItem.count}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <p className="text-xs text-neutral-400 dark:text-neutral-500 hidden sm:block">
+                    Diffusé automatiquement aux clients
+                  </p>
+                </div>
+              )}
+
+              {/* Promotions List */}
+              {promotions.length === 0 ? (
+                <div className="text-center py-12 px-4 rounded-2xl border-2 border-dashed border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/20">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 mx-auto mb-3 shadow-inner">
+                    <Tag className="h-7 w-7" />
+                  </div>
+                  <h3 className="text-base font-bold text-neutral-900 dark:text-neutral-50">
+                    Aucune offre promotionnelle pour le moment
+                  </h3>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-md mx-auto mt-1 mb-6 leading-relaxed">
+                    Créez votre première offre (ex: Pack Marié VIP, Remise Étudiants ou Spécial Weekend) pour attirer de nouveaux clients et booster vos réservations.
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-3">
+                    <Button
+                      onClick={() => applyPromoTemplate(PROMO_TEMPLATES[0])}
+                      className="bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white rounded-xl shadow-md font-bold text-xs"
+                    >
+                      💍 Lancer le Pack Marié (-25%)
+                    </Button>
+                    <Button
+                      onClick={openNewPromoModal}
+                      variant="outline"
+                      className="rounded-xl font-bold text-xs"
+                    >
+                      <Plus className="h-4 w-4 mr-1.5" />
+                      Offre personnalisée
+                    </Button>
+                  </div>
+                </div>
+              ) : filteredPromotions.length === 0 ? (
+                <div className="text-center py-10 text-neutral-500 dark:text-neutral-400">
+                  <p className="text-sm font-semibold">Aucune promotion dans cette catégorie</p>
+                  <button
+                    onClick={() => setPromoFilter("all")}
+                    className="text-xs text-violet-600 dark:text-violet-400 underline mt-1"
+                  >
+                    Voir toutes les promotions ({promotions.length})
+                  </button>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {promotions.map((promo) => (
-                    <div
-                      key={promo.id}
-                      className="group relative flex flex-col md:flex-row gap-4 p-4 rounded-2xl border border-neutral-200/60 dark:border-neutral-800/80 bg-white dark:bg-neutral-900/40 hover:bg-neutral-50 dark:hover:bg-neutral-900/60 transition-all duration-300 shadow-sm overflow-hidden"
-                    >
-                      {/* Promo discount badge */}
-                      <div className="absolute top-3 left-3 z-10 px-2.5 py-1 rounded-xl text-xs font-black bg-red-600 text-white shadow-md animate-pulse">
-                        -{promo.discount}% OFF
-                      </div>
+                  {filteredPromotions.map((promo) => {
+                    const days = getDaysRemaining(promo.endDate);
+                    const isEnded = days !== null && days < 0;
+                    const isUpcoming = promo.startDate && promo.startDate > todayStr;
+                    const isActive = !isEnded && !isUpcoming && promo.isActive !== false;
 
-                      {/* Promo Image fallback */}
-                      <div className="w-full md:w-32 aspect-video md:aspect-square rounded-xl overflow-hidden bg-neutral-100 dark:bg-neutral-850 border border-neutral-200/40 dark:border-neutral-850 shrink-0">
-                        {promo.imageUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={promo.imageUrl}
-                            alt={promo.title}
-                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          />
-                        ) : (
-                          <div className="h-full w-full bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-white">
-                            <Tag className="h-8 w-8 opacity-80" />
-                          </div>
+                    return (
+                      <div
+                        key={promo.id}
+                        className={cn(
+                          "group relative flex flex-col rounded-2xl border transition-all duration-300 shadow-sm overflow-hidden bg-white dark:bg-neutral-950",
+                          isActive
+                            ? "border-amber-200/80 dark:border-amber-900/40 hover:shadow-lg hover:-translate-y-0.5"
+                            : isUpcoming
+                            ? "border-blue-200/80 dark:border-blue-900/40 hover:shadow-md"
+                            : "border-neutral-200/60 dark:border-neutral-800 opacity-75 hover:opacity-100"
                         )}
-                      </div>
-
-                      {/* Promo Text Details */}
-                      <div className="flex-1 flex flex-col justify-between py-0.5">
-                        <div>
-                          <h4 className="font-bold text-neutral-900 dark:text-neutral-50 text-base line-clamp-1">
-                            {promo.title}
-                          </h4>
-                          {promo.description && (
-                            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 line-clamp-2 leading-relaxed">
-                              {promo.description}
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="mt-3 flex items-center justify-between">
-                          <div className="text-[10px] font-semibold text-neutral-400 dark:text-neutral-500 flex flex-col">
-                            <span>Début : {promo.startDate}</span>
-                            <span>Fin : {promo.endDate}</span>
+                      >
+                        {/* Top Gradient Banner with Status */}
+                        <div className={cn(
+                          "relative p-4 text-white flex items-center justify-between",
+                          isActive
+                            ? "bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500"
+                            : isUpcoming
+                            ? "bg-gradient-to-r from-blue-500 to-indigo-600"
+                            : "bg-neutral-700"
+                        )}>
+                          <div className="flex items-center gap-2">
+                            <span className="text-2xl font-black tracking-tight">
+                              -{promo.discount}%
+                            </span>
+                            <span className="text-[10px] font-black uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full">
+                              Remise
+                            </span>
                           </div>
-                          
-                          <button
-                            type="button"
-                            onClick={() => handleDeletePromotion(promo.id)}
-                            className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-all"
-                            title="Supprimer la promotion"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+
+                          <div className="flex items-center gap-1.5">
+                            {isActive ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-white text-emerald-700 shadow-sm">
+                                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                                {days !== null && days >= 0
+                                  ? days === 0
+                                    ? "Dernier jour !"
+                                    : `Reste ${days}j`
+                                  : "En cours"}
+                              </span>
+                            ) : isUpcoming ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/90 text-blue-700 shadow-sm">
+                                <Clock className="h-3 w-3" />
+                                À venir
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-neutral-900/40 text-neutral-300">
+                                Terminée
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Card Body */}
+                        <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                          <div>
+                            <h4 className="font-extrabold text-neutral-900 dark:text-neutral-50 text-base leading-snug">
+                              {promo.title}
+                            </h4>
+                            {promo.description && (
+                              <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1.5 leading-relaxed line-clamp-2">
+                                {promo.description}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="space-y-3 pt-2 border-t border-neutral-100 dark:border-neutral-800">
+                            {/* Dates details */}
+                            <div className="flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400">
+                              <span className="flex items-center gap-1.5">
+                                <Calendar className="h-3.5 w-3.5 text-neutral-400" />
+                                <span>{formatPromoDate(promo.startDate)}</span>
+                                <span>→</span>
+                                <span className="font-semibold text-neutral-700 dark:text-neutral-200">
+                                  {formatPromoDate(promo.endDate)}
+                                </span>
+                              </span>
+                            </div>
+
+                            {/* Card Footer Actions */}
+                            <div className="flex items-center justify-between gap-2 pt-1">
+                              <a
+                                href={`/client/shops/${shop.id}?promo=true&discount=${promo.discount}&startDate=${promo.startDate}&endDate=${promo.endDate}&title=${encodeURIComponent(promo.title)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs font-bold text-violet-600 hover:text-violet-700 dark:text-violet-400 dark:hover:text-violet-300 transition-colors"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                                Tester côté client ↗
+                              </a>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeletePromotion(promo.id)}
+                                className="flex h-8 px-2.5 items-center gap-1 text-xs font-semibold rounded-xl text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 transition-all cursor-pointer"
+                                title="Supprimer la promotion"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                <span>Supprimer</span>
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
@@ -1644,7 +2011,7 @@ export default function OwnerShopPage() {
         </form>
       </Modal>
 
-      {/* Create Promotion Modal */}
+      {/* ── SUPERCHARGED CREATE PROMOTION MODAL ── */}
       <Modal
         isOpen={showPromoModal}
         onClose={() => setShowPromoModal(false)}
@@ -1655,147 +2022,324 @@ export default function OwnerShopPage() {
             e.preventDefault();
             handleCreatePromotion();
           }}
-          className="space-y-4 max-h-[85vh] overflow-y-auto px-1 py-1"
+          className="space-y-5 max-h-[85vh] overflow-y-auto px-1 py-1"
         >
-          <p className="text-xs text-neutral-400 dark:text-neutral-500">
-            Lorsque vous créez cette offre, tous les clients de votre plateforme recevront instantanément une notification sonore et visuelle !
-          </p>
+          {/* Real-time broadcast notice */}
+          <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-gradient-to-r from-violet-50 to-indigo-50 dark:from-violet-950/30 dark:to-indigo-950/30 border border-violet-200/80 dark:border-violet-900/50">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm mt-0.5">
+              <Bell className="h-4 w-4" />
+            </div>
+            <div className="text-xs text-neutral-700 dark:text-neutral-300 leading-relaxed">
+              <span className="font-bold text-violet-900 dark:text-violet-200 block">
+                Diffusion instantanée aux clients
+              </span>
+              Dès validation, une notification sonore et visuelle sera envoyée à tous les clients inscrits. L'offre sera visible avec prix barrés automatiques sur votre page salon.
+            </div>
+          </div>
 
+          {/* Preset Template Selector */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold uppercase tracking-wider text-neutral-600 dark:text-neutral-400 flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                Modèles d'offres en 1 clic :
+              </label>
+              {selectedTemplateId && (
+                <span className="text-[11px] font-bold text-violet-600 dark:text-violet-400">
+                  Modèle sélectionné ✓
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {PROMO_TEMPLATES.map((tmpl) => {
+                const isSelected = selectedTemplateId === tmpl.id;
+                return (
+                  <button
+                    key={tmpl.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedTemplateId(tmpl.id);
+                      setNewPromo((prev) => ({
+                        ...prev,
+                        title: tmpl.title,
+                        description: tmpl.description,
+                        discount: tmpl.discount,
+                        startDate: getTodayDate(),
+                        endDate: getFutureDate(tmpl.durationDays),
+                      }));
+                    }}
+                    className={cn(
+                      "flex items-center gap-2 p-2.5 rounded-xl border text-left transition-all cursor-pointer text-xs",
+                      isSelected
+                        ? "border-violet-600 bg-violet-50 dark:bg-violet-950/30 text-violet-900 dark:text-violet-100 ring-2 ring-violet-500/30 shadow-sm"
+                        : "border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-850"
+                    )}
+                  >
+                    <span className="text-lg shrink-0">{tmpl.icon}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold truncate">{tmpl.name}</p>
+                      <span className="text-[10px] font-black text-red-600 dark:text-red-400">
+                        -{tmpl.discount}%
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Title */}
           <div>
             <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
-              Titre de l&apos;offre / promo *
+              Titre de l&apos;offre *
             </label>
             <Input
               value={newPromo.title}
-              onChange={(e) =>
-                setNewPromo({ ...newPromo, title: e.target.value })
-              }
+              onChange={(e) => {
+                setSelectedTemplateId(null);
+                setNewPromo({ ...newPromo, title: e.target.value });
+              }}
               required
-              placeholder="Ex: Spécial Weekend - Remise sur la barbe !"
-              className="rounded-xl"
+              placeholder="Ex: Pack Marié VIP 💍, Spécial Weekend, Remise Étudiants..."
+              className="rounded-xl font-medium"
             />
           </div>
 
+          {/* Description */}
           <div>
             <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
-              Description / Détails
+              Description & Prestations incluses
             </label>
-            <Input
+            <textarea
               value={newPromo.description}
               onChange={(e) =>
                 setNewPromo({ ...newPromo, description: e.target.value })
               }
-              placeholder="Ex: Valable sur toutes les prestations coupe + barbe."
-              className="rounded-xl"
+              rows={2}
+              placeholder="Ex: Coupe soignée, soin barbe complet, massage & finition vapeur. Valable sur réservation."
+              className="flex w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-600 dark:border-neutral-800 dark:bg-neutral-950 dark:placeholder:text-neutral-500 resize-none font-medium"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
-                Remise (%) *
+          {/* Discount Selector with Quick Buttons */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                Pourcentage de remise (%) *
               </label>
-              <Input
-                type="number"
-                value={newPromo.discount}
-                onChange={(e) =>
-                  setNewPromo({ ...newPromo, discount: Number(e.target.value) })
-                }
-                required
-                min={1}
-                max={100}
-                placeholder="20"
-                className="rounded-xl"
-              />
+              <span className="text-xs font-black text-red-600 bg-red-50 dark:bg-red-950/40 px-2 py-0.5 rounded-md">
+                -{newPromo.discount}%
+              </span>
             </div>
-            <div>
-              <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
-                Image promotionnelle (Optionnelle)
-              </label>
-              <label className="relative flex items-center justify-center w-full h-10 border border-dashed border-neutral-300 dark:border-neutral-700 rounded-xl cursor-pointer bg-neutral-50 hover:bg-neutral-100 dark:bg-neutral-900 dark:hover:bg-neutral-850 transition-all overflow-hidden">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePromoFileUpload}
-                  disabled={promoUploading}
-                  className="hidden"
-                />
-                <span className="text-xs font-bold text-neutral-600 dark:text-neutral-400 flex items-center gap-1.5">
-                  {promoUploading ? (
-                    <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
-                  ) : (
-                    <Upload className="h-3.5 w-3.5 text-violet-500" />
+
+            {/* Quick discount buttons */}
+            <div className="flex flex-wrap gap-1.5">
+              {[10, 15, 20, 25, 30, 50].map((dVal) => (
+                <button
+                  key={dVal}
+                  type="button"
+                  onClick={() => setNewPromo((p) => ({ ...p, discount: dVal }))}
+                  className={cn(
+                    "px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer",
+                    newPromo.discount === dVal
+                      ? "bg-red-600 text-white shadow-sm"
+                      : "bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300"
                   )}
-                  {newPromo.imageUrl ? "Image chargée ! ✅" : "Télécharger une photo"}
+                >
+                  -{dVal}%
+                </button>
+              ))}
+              <div className="w-24">
+                <Input
+                  type="number"
+                  value={newPromo.discount}
+                  onChange={(e) =>
+                    setNewPromo({ ...newPromo, discount: Number(e.target.value) })
+                  }
+                  required
+                  min={1}
+                  max={100}
+                  className="rounded-xl h-8 text-xs font-bold text-center"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Validity Period with Quick Duration Buttons */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                Période de validité *
+              </label>
+              <div className="flex items-center gap-1 text-[11px] text-neutral-500">
+                <span>Raccourcis :</span>
+                {[
+                  { label: "3 jours (Flash)", days: 3 },
+                  { label: "1 sem.", days: 7 },
+                  { label: "14 jours", days: 14 },
+                  { label: "30 jours", days: 30 },
+                ].map((dur) => (
+                  <button
+                    key={dur.days}
+                    type="button"
+                    onClick={() => {
+                      const today = getTodayDate();
+                      setNewPromo((p) => ({
+                        ...p,
+                        startDate: today,
+                        endDate: getFutureDate(dur.days),
+                      }));
+                    }}
+                    className="px-2 py-0.5 rounded-md bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-[10px] font-semibold text-neutral-700 dark:text-neutral-300 transition-colors"
+                  >
+                    {dur.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-neutral-500 mb-1">
+                  Date de début :
+                </label>
+                <Input
+                  type="date"
+                  value={newPromo.startDate}
+                  onChange={(e) =>
+                    setNewPromo({ ...newPromo, startDate: e.target.value })
+                  }
+                  required
+                  className="rounded-xl text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-500 mb-1">
+                  Date de fin :
+                </label>
+                <Input
+                  type="date"
+                  value={newPromo.endDate}
+                  onChange={(e) =>
+                    setNewPromo({ ...newPromo, endDate: e.target.value })
+                  }
+                  required
+                  className="rounded-xl text-xs"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Optional Promo Image Upload */}
+          <div>
+            <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+              Image promotionnelle (Optionnelle)
+            </label>
+            <label className="relative flex items-center justify-center w-full h-11 border border-dashed border-neutral-300 dark:border-neutral-700 rounded-xl cursor-pointer bg-neutral-50 hover:bg-neutral-100 dark:bg-neutral-900 dark:hover:bg-neutral-850 transition-all overflow-hidden">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handlePromoFileUpload}
+                disabled={promoUploading}
+                className="hidden"
+              />
+              <span className="text-xs font-bold text-neutral-600 dark:text-neutral-400 flex items-center gap-1.5">
+                {promoUploading ? (
+                  <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
+                ) : (
+                  <Upload className="h-3.5 w-3.5 text-violet-500" />
+                )}
+                {newPromo.imageUrl ? "Image chargée ! ✅" : "Télécharger une photo pour l'offre"}
+              </span>
+            </label>
+            {newPromo.imageUrl && (
+              <div className="relative mt-2 aspect-video w-32 rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-800">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={newPromo.imageUrl} alt="" className="h-full w-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setNewPromo({ ...newPromo, imageUrl: "" })}
+                  className="absolute top-1 right-1 h-5 w-5 bg-red-600 text-white rounded-full flex items-center justify-center text-xs"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* ── LIVE CLIENT PREVIEW (Aperçu temps réel) ── */}
+          <div className="rounded-2xl p-4 bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/80 dark:border-neutral-800 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 flex items-center gap-1.5">
+                <Eye className="h-3.5 w-3.5 text-violet-500" />
+                Aperçu de ce que verront vos clients :
+              </p>
+              <span className="text-[10px] font-bold bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 px-2 py-0.5 rounded-full">
+                Live Preview
+              </span>
+            </div>
+
+            {/* Mockup Card */}
+            <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 rounded-2xl p-4 text-white flex items-center gap-3 shadow-md relative overflow-hidden">
+              <div className="h-12 w-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shrink-0 border border-white/30 shadow-inner">
+                <span className="text-xl font-black">-{newPromo.discount || 20}%</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="font-black text-sm tracking-tight truncate">
+                    {newPromo.title.trim() || "Titre de votre offre..."}
+                  </p>
+                  <span className="text-[10px] font-bold bg-white/20 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                    Offre
+                  </span>
+                </div>
+                <p className="text-xs text-white/90 mt-0.5 line-clamp-1">
+                  {newPromo.description.trim() || "Description détaillée des prestations incluses..."}
+                </p>
+                <p className="text-[10px] text-white/80 mt-1 flex items-center gap-1 font-medium">
+                  Jusqu'au {newPromo.endDate ? formatPromoDate(newPromo.endDate) : "Date de fin"}
+                </p>
+              </div>
+              <div className="shrink-0 rounded-xl px-4 py-2 text-xs font-black shadow-md bg-white text-orange-600 flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5" />
+                Profiter
+              </div>
+            </div>
+
+            {/* Live calculation example with crossed-out price */}
+            <div className="flex items-center justify-between bg-white dark:bg-neutral-950 rounded-xl p-3 border border-neutral-100 dark:border-neutral-800 text-xs">
+              <span className="font-medium text-neutral-700 dark:text-neutral-300">
+                Effet sur les tarifs (ex: Prestation 25.00 TND) :
+              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-neutral-400 line-through">25.00 TND</span>
+                <span className="font-black text-red-600 text-sm">
+                  {(25 * (1 - (newPromo.discount || 20) / 100)).toFixed(2)} TND
                 </span>
-              </label>
+                <span className="text-[10px] font-black bg-red-100 text-red-600 px-1.5 py-0.5 rounded-md">
+                  -{newPromo.discount || 20}%
+                </span>
+              </div>
             </div>
           </div>
 
-          {newPromo.imageUrl && (
-            <div className="relative aspect-video rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 shrink-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={newPromo.imageUrl}
-                alt="Promo Preview"
-                className="h-full w-full object-cover"
-              />
-              <button
-                type="button"
-                onClick={() => setNewPromo({ ...newPromo, imageUrl: "" })}
-                className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-xl bg-red-600 text-white shadow hover:bg-red-500 transition-colors"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
-                Date de début *
-              </label>
-              <Input
-                type="date"
-                value={newPromo.startDate}
-                onChange={(e) =>
-                  setNewPromo({ ...newPromo, startDate: e.target.value })
-                }
-                required
-                className="rounded-xl"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
-                Date de fin *
-              </label>
-              <Input
-                type="date"
-                value={newPromo.endDate}
-                onChange={(e) =>
-                  setNewPromo({ ...newPromo, endDate: e.target.value })
-                }
-                required
-                className="rounded-xl"
-              />
-            </div>
-          </div>
-
+          {/* Modal Actions */}
           <div className="flex justify-end gap-3 pt-4 border-t border-neutral-100 dark:border-neutral-800/80 mt-4">
             <Button
               type="button"
               variant="outline"
               onClick={() => setShowPromoModal(false)}
-              className="rounded-xl"
+              className="rounded-xl text-xs font-bold"
             >
               Annuler
             </Button>
             <Button
               type="submit"
               disabled={savingPromo}
-              className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-xl shadow-md"
+              className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-xl shadow-md text-xs font-bold px-5"
             >
-              {savingPromo ? "Création..." : "Diffuser la promotion"}
+              {savingPromo ? "Diffusion en cours..." : "Diffuser la promotion aux clients 🎉"}
             </Button>
           </div>
         </form>

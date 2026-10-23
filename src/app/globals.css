@@ -1,5 +1,21 @@
 @import "tailwindcss";
 
+/* ── disable dark mode: dark: classes only apply when .dark is on an ancestor ── */
+/* Since no element has class="dark", all dark: variants are effectively disabled */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── force light colors ── */
+:root {
+  color-scheme: light;
+  --background: #ffffff;
+  --foreground: #0f172a;
+}
+
+html, body {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #0f172a;
@@ -107,3 +123,18 @@ body {
 .animation-delay-4000 {
   animation-delay: 4s;
 }
+
+/* ── webapp / mobile utilities ── */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* safe-area padding helpers */
+.pb-safe  { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.pt-safe  { padding-top:    env(safe-area-inset-top,    0px); }
+.pl-safe  { padding-left:   env(safe-area-inset-left,   0px); }
+.pr-safe  { padding-right:  env(safe-area-inset-right,  0px); }

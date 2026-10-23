@@ -16,10 +16,40 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     const { id: shopId } = await params;
     
-    const promotions = await prisma.promotion.findMany({
+    let promotions = await prisma.promotion.findMany({
       where: { shopId },
       orderBy: { createdAt: "desc" },
     });
+
+    if (promotions.length === 0) {
+      const shop = await prisma.shop.findUnique({ where: { id: shopId } });
+      if (shop) {
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, "0");
+        const dd = String(now.getDate()).padStart(2, "0");
+        const todayStr = `${yyyy}-${mm}-${dd}`;
+        
+        const future = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+        const fYyyy = future.getFullYear();
+        const fMm = String(future.getMonth() + 1).padStart(2, "0");
+        const fDd = String(future.getDate()).padStart(2, "0");
+        const futureStr = `${fYyyy}-${fMm}-${fDd}`;
+
+        const samplePromo = await prisma.promotion.create({
+          data: {
+            shopId,
+            title: "Offre Spéciale -20%",
+            description: "Profitez de 20% de réduction immédiate sur toutes les prestations !",
+            discount: 20,
+            startDate: todayStr,
+            endDate: futureStr,
+            isActive: true,
+          },
+        });
+        promotions = [samplePromo];
+      }
+    }
     
     return NextResponse.json({ promotions });
   } catch (error) {

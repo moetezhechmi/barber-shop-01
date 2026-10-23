@@ -3,55 +3,44 @@
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-  Star, MapPin, Phone, Scissors, Clock, Euro, CheckCircle,
-  ArrowLeft, Sparkles, Loader2, ChevronRight, X, UserCircle2, CalendarDays,
-  Wifi, Coffee, Gamepad, Snowflake, Car, Image as ImageIcon
+  Star, MapPin, Phone, Scissors, Clock, CheckCircle,
+  ArrowLeft, Sparkles, Loader2, X, CalendarDays,
+  Wifi, Coffee, Gamepad, Snowflake, Car, ChevronDown, ChevronUp, Tag
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { Modal } from "@/components/ui/modal";
 import { formatPrice, formatDate, formatTime } from "@/lib/utils";
 
-const AMENITIES_LIST = [
-  { key: "wifi", label: "Wi-Fi Gratuit", icon: Wifi, color: "bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/50" },
-  { key: "coffee", label: "Café & Boisson", icon: Coffee, color: "bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/50" },
-  { key: "playstation", label: "PlayStation / Jeux", icon: Gamepad, color: "bg-indigo-50 text-indigo-600 border-indigo-100 dark:bg-indigo-950/20 dark:text-indigo-400 dark:border-indigo-900/50" },
-  { key: "ac", label: "Climatiseur", icon: Snowflake, color: "bg-sky-50 text-sky-600 border-sky-100 dark:bg-sky-950/20 dark:text-sky-400 dark:border-sky-900/50" },
-  { key: "parking", label: "Parking Privé", icon: Car, color: "bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50" },
+/* ── social SVGs ── */
+const IgIcon = () => <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" strokeWidth="3"/></svg>;
+const FbIcon = () => <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c4.56-.93 8-4.96 8-9.95z"/></svg>;
+const TkIcon = () => <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12.525.02c1.31-.03 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.86-.74-3.94-1.74-.22-.21-.42-.45-.61-.7-.02 3.68-.01 7.36-.02 11.04-.1 1.72-.77 3.47-2.07 4.59-1.27 1.14-3.03 1.75-4.74 1.78-1.72.03-3.51-.48-4.82-1.57-1.37-1.12-2.18-2.91-2.29-4.67-.16-2.52 1.34-5.01 3.73-5.87.5-.18 1.04-.3 1.57-.36v4.13c-.4.07-.82.19-1.19.4-.87.49-1.34 1.53-1.13 2.53.16.82.81 1.48 1.62 1.64.97.21 2.05-.18 2.52-1.07.22-.4.29-.87.28-1.32-.01-4.08 0-8.15-.01-12.23.01-.15.01-.3 0-.45z"/></svg>;
+
+const AMENITIES = [
+  { key: "wifi", label: "Wi-Fi", icon: Wifi },
+  { key: "coffee", label: "Café", icon: Coffee },
+  { key: "playstation", label: "PS5", icon: Gamepad },
+  { key: "ac", label: "Climatiseur", icon: Snowflake },
+  { key: "parking", label: "Parking", icon: Car },
 ];
 
-interface GalleryImage {
-  id: string;
-  url: string;
-  caption: string | null;
-}
-
-interface Barber {
-  id: string;
-  user: { id: string; name: string; image?: string };
-  bio?: string;
-  reviews?: { rating: number }[];
-  gallery?: GalleryImage[];
-}
-
-interface Service {
-  id: string;
-  name: string;
-  description?: string;
-  duration: number;
-  price: number;
-}
-
+interface GalleryImage { id: string; url: string; caption: string | null; }
+interface Barber { id: string; user: { id: string; name: string; image?: string }; bio?: string; reviews?: { rating: number }[]; gallery?: GalleryImage[]; }
+interface Service { id: string; name: string; description?: string; duration: number; price: number; }
 interface Shop {
-  id: string;
-  name: string;
-  address: string;
-  phone: string | null;
-  description: string | null;
-  images?: string[];
-  amenities?: string[];
-  barbers: Barber[];
-  services: Service[];
+  id: string; name: string; address: string; phone: string | null; description: string | null;
+  images?: string[]; amenities?: string[]; facebook?: string | null; instagram?: string | null; tiktok?: string | null;
+  barbers: Barber[]; services: Service[];
+}
+
+function safeFormatDate(dStr: string) {
+  if (!dStr) return "";
+  const clean = dStr.split("T")[0];
+  try {
+    return formatDate(clean);
+  } catch {
+    return clean;
+  }
 }
 
 export default function ShopDetailPage() {
@@ -62,211 +51,209 @@ export default function ShopDetailPage() {
   const [shop, setShop] = React.useState<Shop | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [reviews, setReviews] = React.useState<any[]>([]);
 
-  const [booking, setBooking] = React.useState({
-    service: "",
-    barber: "",
-    date: "",
-    time: "",
-    assignedBarberId: "",
-    notes: ""
-  });
-
-  const selectedService = booking.service;
-  const selectedBarber = booking.barber;
-  const selectedDate = booking.date;
-  const selectedTime = booking.time;
-  const assignedBarberId = booking.assignedBarberId;
-  const notes = booking.notes;
-
-  const handleServiceSelect = React.useCallback((serviceId: string) => {
-    setBooking(prev => ({ ...prev, service: serviceId }));
-  }, []);
-
-  const handleBarberSelect = React.useCallback((barberId: string) => {
-    setBooking(prev => ({ ...prev, barber: barberId, time: "", assignedBarberId: "" }));
-  }, []);
-
-  const handleDateSelect = React.useCallback((date: string) => {
-    setBooking(prev => ({ ...prev, date, time: "", assignedBarberId: "" }));
-  }, []);
-
-  const handleTimeSelect = React.useCallback((time: string, barberId: string) => {
-    setBooking(prev => ({ ...prev, time, assignedBarberId: barberId }));
-  }, []);
-
-  const handleNotesChange = React.useCallback((notes: string) => {
-    setBooking(prev => ({ ...prev, notes }));
-  }, []);
-
-  // Array of { time, barberId }
-  const [availableSlots, setAvailableSlots] = React.useState<{ time: string; barberId: string }[]>([]);
+  const [booking, setBooking] = React.useState({ service: "", barber: "", date: "", time: "", assignedBarberId: "", notes: "" });
+  const [slots, setSlots] = React.useState<{ time: string; barberId: string }[]>([]);
   const [slotsLoading, setSlotsLoading] = React.useState(false);
-  const [showBookingSheet, setShowBookingSheet] = React.useState(false);
+  const [showSheet, setShowSheet] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
   const [confirmation, setConfirmation] = React.useState<any>(null);
-  const [activeBarberProfile, setActiveBarberProfile] = React.useState<Barber | null>(null);
-  const [reviews, setReviews] = React.useState<any[]>([]);
-  const [reviewsLoading, setReviewsLoading] = React.useState(true);
+  const [activeBarber, setActiveBarber] = React.useState<Barber | null>(null);
+  const [heroIdx, setHeroIdx] = React.useState(0);
+  const [showGallery, setShowGallery] = React.useState(false);
+  const [tab, setTab] = React.useState<"book" | "team" | "reviews">("book");
+  const [showDesc, setShowDesc] = React.useState(false);
+  const [calMonth, setCalMonth] = React.useState(new Date().getMonth());
+  const [calYear, setCalYear] = React.useState(new Date().getFullYear());
 
-  const sheetRef = React.useRef<HTMLDivElement>(null);
-  const today = new Date().toISOString().split("T")[0];
+  const tx0 = React.useRef(0);
+  const tabsRef = React.useRef<HTMLDivElement>(null);
 
+  // Promotion States
   const [isPromo, setIsPromo] = React.useState(false);
   const [promoStart, setPromoStart] = React.useState("");
   const [promoEnd, setPromoEnd] = React.useState("");
   const [promoDiscount, setPromoDiscount] = React.useState("");
-  const [promoTitle, setPromoTitle] = React.useState("");
+  const [activePromoTitle, setActivePromoTitle] = React.useState("");
+  const [promotions, setPromotions] = React.useState<any[]>([]);
 
-  const dateTimeRef = React.useRef<HTMLDivElement>(null);
+  // Compute today's date in local YYYY-MM-DD
+  const todayStr = React.useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
 
+  // Handle URL query parameters (e.g., from notifications or marketing links)
   React.useEffect(() => {
-    if (typeof window !== "undefined") {
-      const searchParams = new URLSearchParams(window.location.search);
-      const isPromoParam = searchParams.get("promo") === "true";
-      if (isPromoParam) {
-        setIsPromo(true);
-        setPromoStart(searchParams.get("startDate") || "");
-        setPromoEnd(searchParams.get("endDate") || "");
-        setPromoDiscount(searchParams.get("discount") || "");
-        setPromoTitle(searchParams.get("title") || "");
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get("promo") === "true") {
+      setIsPromo(true);
+      const start = (sp.get("startDate") || "").split("T")[0];
+      const end = (sp.get("endDate") || "").split("T")[0];
+      const disc = sp.get("discount") || "";
+      const title = sp.get("title") || "";
+      setPromoStart(start);
+      setPromoEnd(end);
+      setPromoDiscount(disc);
+      if (title) setActivePromoTitle(title);
+      setTab("book");
+      if (start) {
+        const parts = start.split("-");
+        if (parts.length === 3) {
+          const y = parseInt(parts[0], 10);
+          const m = parseInt(parts[1], 10) - 1;
+          if (!isNaN(y) && !isNaN(m)) {
+            setCalYear(y);
+            setCalMonth(m);
+          }
+        }
       }
+      setTimeout(() => {
+        tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 150);
     }
   }, []);
 
-  React.useEffect(() => {
-    if (isPromo && shop) {
-      setBooking(prev => {
-        let updated = { ...prev };
-        let changed = false;
-        if (!prev.service && shop.services.length > 0) {
-          updated.service = shop.services[0].id;
-          changed = true;
-        }
-        if (!prev.barber) {
-          updated.barber = "any";
-          changed = true;
-        }
-        if (!prev.date && promoStart) {
-          const todayStr = new Date().toISOString().split("T")[0];
-          updated.date = todayStr >= promoStart && todayStr <= promoEnd ? todayStr : promoStart;
-          changed = true;
-        }
-        return changed ? updated : prev;
-      });
-    }
-  }, [isPromo, shop, promoStart, promoEnd]);
-
-  React.useEffect(() => {
-    if (isPromo && shop && selectedDate) {
-      const timer = setTimeout(() => {
-        dateTimeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 600);
-      return () => clearTimeout(timer);
-    }
-  }, [isPromo, shop, selectedDate]);
-
+  // Fetch shop data, reviews, and promotions
   React.useEffect(() => {
     if (!params.id) return;
     setLoading(true);
-    setError(null);
-    fetch(`/api/shops/${params.id}`)
-      .then((r) => r.ok ? r.json() : Promise.reject())
-      .then((data) => setShop(data.shop ?? data))
-      .catch(() => setError("Impossible de charger le salon"))
-      .finally(() => setLoading(false));
-
-    setReviewsLoading(true);
-    fetch(`/api/reviews?shopId=${params.id}`)
-      .then((r) => r.ok ? r.json() : { reviews: [] })
-      .then((data) => setReviews(data.reviews || []))
-      .catch(() => setReviews([]))
-      .finally(() => setReviewsLoading(false));
+    Promise.all([
+      fetch(`/api/shops/${params.id}`).then(r => r.ok ? r.json() : Promise.reject()),
+      fetch(`/api/reviews?shopId=${params.id}`).then(r => r.ok ? r.json() : { reviews: [] }),
+      fetch(`/api/shops/${params.id}/promotions`).then(r => r.ok ? r.json() : { promotions: [] }),
+    ]).then(([sd, rd, pd]) => { 
+      setShop(sd.shop ?? sd); 
+      setReviews(rd.reviews || []); 
+      setPromotions(pd.promotions || []);
+    })
+      .catch(() => setError("Impossible de charger le salon")).finally(() => setLoading(false));
   }, [params.id]);
 
+  // Load barber availability slots when barber & date are chosen
   React.useEffect(() => {
-    if (!selectedBarber || !selectedDate || !shop) {
-      setAvailableSlots([]);
-      return;
-    }
+    if (!booking.barber || !booking.date || !shop) { setSlots([]); return; }
     setSlotsLoading(true);
-
-    const fetchSlots = async () => {
+    (async () => {
       try {
-        if (selectedBarber === "any") {
-          // Fetch for all barbers
-          const promises = shop.barbers.map(b => 
-            fetch(`/api/barbers/${b.id}/availability?date=${selectedDate}`)
-              .then(r => r.ok ? r.json() : { slots: [] })
-              .then(d => ({ barberId: b.id, slots: Array.isArray(d.slots) ? d.slots : [] }))
-          );
-          const results = await Promise.all(promises);
-          
-          const combinedSlots: { time: string; barberId: string }[] = [];
-          const seenTimes = new Set<string>();
-          
-          // Sort results to pick times properly, maybe randomize barbers or pick first available
-          results.forEach(res => {
-            res.slots.forEach((time: string) => {
-              if (!seenTimes.has(time)) {
-                seenTimes.add(time);
-                combinedSlots.push({ time, barberId: res.barberId });
-              }
-            });
-          });
-          
-          combinedSlots.sort((a, b) => a.time.localeCompare(b.time));
-          setAvailableSlots(combinedSlots);
+        if (booking.barber === "any") {
+          const res = await Promise.all(shop.barbers.map(b => fetch(`/api/barbers/${b.id}/availability?date=${booking.date}`).then(r => r.ok ? r.json() : { slots: [] }).then(d => ({ id: b.id, slots: Array.isArray(d.slots) ? d.slots : [] }))));
+          const seen = new Set<string>(); const out: typeof slots = [];
+          res.forEach(r => r.slots.forEach((t: string) => { if (!seen.has(t)) { seen.add(t); out.push({ time: t, barberId: r.id }); } }));
+          setSlots(out.sort((a, b) => a.time.localeCompare(b.time)));
         } else {
-          const res = await fetch(`/api/barbers/${selectedBarber}/availability?date=${selectedDate}`);
-          const data = await res.json();
-          const slots = Array.isArray(data.slots) ? data.slots : [];
-          setAvailableSlots(slots.map((time: string) => ({ time, barberId: selectedBarber })));
+          const d = await fetch(`/api/barbers/${booking.barber}/availability?date=${booking.date}`).then(r => r.json());
+          setSlots((Array.isArray(d.slots) ? d.slots : []).map((t: string) => ({ time: t, barberId: booking.barber })));
         }
-      } catch (err) {
-        setAvailableSlots([]);
-      } finally {
-        setSlotsLoading(false);
+      } catch { setSlots([]); } finally { setSlotsLoading(false); }
+    })();
+  }, [booking.barber, booking.date, shop]);
+
+  // Price calculations
+  const svc = React.useMemo(() => shop?.services.find(s => s.id === booking.service), [shop, booking.service]);
+  const origPrice = svc?.price ?? 0;
+  const discountVal = Number(promoDiscount);
+  const hasDiscount = isPromo && !isNaN(discountVal) && discountVal > 0;
+  const finalPrice = hasDiscount ? origPrice * (1 - discountVal / 100) : origPrice;
+  const shopRating = reviews.length ? reviews.reduce((a, r) => a + r.rating, 0) / reviews.length : null;
+  const imgs = shop?.images ?? [];
+  const s1 = !!booking.service, s2 = !!booking.barber, s3 = !!booking.date && !!booking.time;
+  const ready = s1 && s2 && s3;
+  const getBRating = (b: Barber) => b.reviews?.length ? b.reviews.reduce((s, r) => s + r.rating, 0) / b.reviews.length : null;
+
+  // Filter valid promotions (active or not yet expired)
+  const displayPromotions = React.useMemo(() => {
+    if (!promotions || promotions.length === 0) return [];
+    const valid = promotions.filter(p => {
+      if (p.isActive === false) return false;
+      const end = (p.endDate || "").split("T")[0];
+      return !end || end >= todayStr;
+    });
+    // Fallback: if all existing promos have expired dates, still show the latest one for demo/testing
+    return valid.length > 0 ? valid : promotions.slice(0, 1);
+  }, [promotions, todayStr]);
+
+  // Handle clicking "Profiter"
+  const handleApplyPromo = (promo: any) => {
+    const discStr = (promo.discount ?? 20).toString();
+    const startStr = (promo.startDate || "").split("T")[0];
+    const endStr = (promo.endDate || "").split("T")[0];
+
+    setIsPromo(true);
+    setPromoDiscount(discStr);
+    setPromoStart(startStr);
+    setPromoEnd(endStr);
+    setActivePromoTitle(promo.title || "");
+
+    // If promo starts in future, sync calendar month/year
+    if (startStr) {
+      const parts = startStr.split("-");
+      if (parts.length === 3) {
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        if (!isNaN(y) && !isNaN(m)) {
+          setCalYear(y);
+          setCalMonth(m);
+        }
       }
-    };
+    }
 
-    fetchSlots();
-  }, [selectedBarber, selectedDate, shop]);
+    // Reset date if existing selection is outside promo range
+    if (booking.date) {
+      if ((startStr && booking.date < startStr) || (endStr && booking.date > endStr)) {
+        setBooking(b => ({ ...b, date: "", time: "", assignedBarberId: "" }));
+      }
+    }
 
-  const getBarberRating = (barber: Barber) => {
-    if (!barber.reviews?.length) return null;
-    return barber.reviews.reduce((s, r) => s + r.rating, 0) / barber.reviews.length;
+    // Bascule sur l'onglet "Réserver"
+    setTab("book");
+
+    // Scroll vers les tabs
+    setTimeout(() => {
+      const el = tabsRef.current || document.getElementById("booking-tabs");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 60);
+
+    toast(`Offre -${promo.discount}% activée ! Prix barrés appliqués.`, "success");
   };
 
-
+  // Handle removing promo
+  const handleRemovePromo = () => {
+    setIsPromo(false);
+    setPromoDiscount("");
+    setPromoStart("");
+    setPromoEnd("");
+    setActivePromoTitle("");
+    toast("Promotion retirée", "info");
+  };
 
   const handleBook = async () => {
-    if (!selectedService || !selectedBarber || !selectedDate || !selectedTime || !assignedBarberId) {
-      toast("Veuillez remplir tous les champs", "error");
-      return;
-    }
+    if (!ready || !booking.assignedBarberId) { toast("Veuillez compléter toutes les étapes", "error"); return; }
     setSubmitting(true);
     try {
+      const noteWithPromo = isPromo && promoDiscount
+        ? (booking.notes ? `${booking.notes} (Offre -${promoDiscount}%)` : `Offre promotionnelle -${promoDiscount}%`)
+        : booking.notes;
+
       const res = await fetch("/api/appointments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          serviceId: selectedService,
-          barberId: assignedBarberId,
+          serviceId: booking.service,
+          barberId: booking.assignedBarberId,
           shopId: shop!.id,
-          date: selectedDate,
-          startTime: selectedTime,
-          notes,
-        }),
+          date: booking.date,
+          startTime: booking.time,
+          notes: noteWithPromo
+        })
       });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || "Erreur lors de la réservation");
-      }
-      const data = await res.json();
-      setConfirmation(data.appointment ?? data);
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Erreur");
+      setConfirmation((await res.json()).appointment ?? {});
       toast("Rendez-vous confirmé !", "success");
-      setShowBookingSheet(false);
+      setShowSheet(false);
     } catch (err) {
       toast(err instanceof Error ? err.message : "Erreur", "error");
     } finally {
@@ -274,701 +261,617 @@ export default function ShopDetailPage() {
     }
   };
 
-  const selectedServiceData = React.useMemo(() => shop?.services.find((s) => s.id === selectedService), [shop, selectedService]);
-  const originalPrice = selectedServiceData ? selectedServiceData.price : 0;
-  const discountedPrice = React.useMemo(() => {
-    return isPromo && promoDiscount 
-      ? originalPrice * (1 - Number(promoDiscount) / 100) 
-      : originalPrice;
-  }, [isPromo, promoDiscount, originalPrice]);
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-neutral-50 dark:bg-neutral-950">
-        <div className="relative">
-          <div className="h-24 w-24 rounded-[2rem] border-[6px] border-violet-200 border-t-violet-600 animate-[spin_1.5s_linear_infinite] dark:border-violet-900 dark:border-t-violet-400 shadow-xl shadow-violet-500/20" />
-          <Scissors className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-8 w-8 text-violet-600 dark:text-violet-400 opacity-90 animate-pulse" />
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !shop) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4 bg-neutral-50 dark:bg-neutral-950">
-        <p className="text-lg text-red-600 dark:text-red-400 font-medium">{error || "Salon introuvable"}</p>
-        <Button variant="outline" className="mt-6 rounded-xl" onClick={() => router.back()}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Retour aux salons
-        </Button>
-      </div>
-    );
-  }
+  if (loading) return <div className="flex min-h-dvh items-center justify-center bg-white"><div className="h-12 w-12 rounded-2xl border-4 border-violet-100 border-t-violet-600 animate-spin" /></div>;
+  if (error || !shop) return <div className="flex min-h-dvh flex-col items-center justify-center gap-4 p-6 text-center"><p className="text-red-500">{error || "Salon introuvable"}</p><button onClick={() => router.back()} className="text-sm text-violet-600 underline">Retour</button></div>;
 
   if (confirmation) {
-    const barber = shop.barbers.find((b) => b.id === assignedBarberId);
+    const barber = shop.barbers.find(b => b.id === booking.assignedBarberId);
     return (
-      <div className="mx-auto max-w-md px-4 py-12 animate-fade-in">
-        <div className="rounded-3xl border border-green-200 bg-white p-8 text-center shadow-2xl shadow-green-500/10 dark:border-green-900/50 dark:bg-neutral-900">
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-            <CheckCircle className="h-10 w-10 text-green-600 dark:text-green-400" />
+      <div className="flex min-h-dvh flex-col items-center justify-center p-5 bg-gray-50">
+        <div className="w-full max-w-sm bg-white rounded-3xl p-7 text-center shadow-xl">
+          <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
+            <CheckCircle className="h-8 w-8 text-green-500" />
           </div>
-          <h2 className="text-2xl font-bold text-neutral-900 dark:text-white">Réservation confirmée !</h2>
-          <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">Votre rendez-vous a été enregistré avec succès.</p>
-          
-          <div className="mt-8 space-y-3 rounded-2xl bg-neutral-50 p-5 text-left text-sm dark:bg-neutral-800/50">
-            <div className="flex items-center justify-between"><span className="text-neutral-500">Salon</span><span className="font-semibold text-neutral-900 dark:text-white">{shop.name}</span></div>
-            <div className="flex items-center justify-between"><span className="text-neutral-500">Barbier</span><span className="font-semibold text-neutral-900 dark:text-white">{barber?.user?.name || "—"}</span></div>
-            <div className="flex items-center justify-between"><span className="text-neutral-500">Service</span><span className="font-semibold text-neutral-900 dark:text-white">{selectedServiceData?.name || "—"}</span></div>
-            <div className="flex items-center justify-between"><span className="text-neutral-500">Prix</span><span className="font-semibold text-violet-600 dark:text-violet-400">{isPromo ? formatPrice(discountedPrice) : (selectedServiceData ? formatPrice(selectedServiceData.price) : "—")}</span></div>
-            <div className="h-px bg-neutral-200 dark:bg-neutral-700 my-2" />
-            <div className="flex items-center justify-between"><span className="text-neutral-500">Date</span><span className="font-semibold text-neutral-900 dark:text-white">{formatDate(selectedDate)}</span></div>
-            <div className="flex items-center justify-between"><span className="text-neutral-500">Heure</span><span className="font-semibold text-neutral-900 dark:text-white">{formatTime(selectedTime)}</span></div>
+          <h2 className="text-xl font-black text-gray-900">Réservé !</h2>
+          <p className="text-sm text-gray-500 mt-1">Votre créneau est confirmé.</p>
+          <div className="mt-5 space-y-2 bg-gray-50 rounded-2xl p-4 text-sm text-left">
+            {[
+              ["Service", svc?.name || "—"],
+              ["Barbier", barber?.user.name || "—"],
+              ["Prix", isPromo && promoDiscount ? `${formatPrice(finalPrice)} (-${promoDiscount}%)` : formatPrice(origPrice)],
+              ["Date", safeFormatDate(booking.date)],
+              ["Heure", formatTime(booking.time)]
+            ].map(([k, v]) => (
+              <div key={k} className="flex justify-between"><span className="text-gray-400">{k}</span><span className="font-semibold text-gray-900">{v}</span></div>
+            ))}
           </div>
-          <Button className="mt-8 w-full rounded-xl py-6 text-base shadow-lg shadow-violet-500/20" onClick={() => router.push("/client/appointments")}>
-            Voir mes rendez-vous
-          </Button>
+          <button onClick={() => router.push("/client/appointments")} className="mt-5 w-full rounded-2xl bg-violet-600 py-4 text-sm font-bold text-white shadow-lg shadow-violet-200">Voir mes rendez-vous</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 pb-32">
-      {/* Hero Section */}
-      <div className="relative bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800">
-        <div className="h-56 bg-neutral-900 relative overflow-hidden">
-          {shop.images && shop.images.length > 0 ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={shop.images[0]}
-              alt={shop.name}
-              className="absolute inset-0 h-full w-full object-cover"
-            />
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700" />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
-          <button
-            onClick={() => router.back()}
-            className="absolute left-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/25 text-white backdrop-blur-md transition-colors hover:bg-white/40"
-          >
-            <ArrowLeft className="h-5 w-5" />
+    <div className="min-h-dvh bg-gray-50 pb-[160px]">
+
+      {/* ── HERO with rounded bottom ── */}
+      <div className="relative overflow-hidden bg-gray-900 rounded-b-[32px]"
+        style={{ height: 280 }}
+        onTouchStart={e => { tx0.current = e.touches[0].clientX; }}
+        onTouchEnd={e => {
+          const diff = tx0.current - e.changedTouches[0].clientX;
+          const len = imgs.length;
+          if (Math.abs(diff) < 40 || len <= 1) return;
+          setHeroIdx(p => diff > 0 ? (p < len-1 ? p+1 : 0) : (p > 0 ? p-1 : len-1));
+        }}>
+        {imgs.length > 0
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={imgs[heroIdx]} alt={shop.name} className="absolute inset-0 h-full w-full object-cover" />
+          : <div className="absolute inset-0 bg-gradient-to-br from-violet-600 to-indigo-700" />}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent rounded-b-[32px]" />
+
+        {/* gallery count */}
+        {imgs.length > 1 && (
+          <button onClick={() => setShowGallery(true)} className="absolute right-4 top-5 z-10 rounded-full bg-black/40 backdrop-blur-sm px-3 py-1.5 text-xs font-semibold text-white flex items-center gap-1.5">
+            <span>{heroIdx + 1}</span><span className="opacity-60">/</span><span className="opacity-60">{imgs.length}</span>
           </button>
-        </div>
-        <div className="mx-auto max-w-2xl px-5 relative -mt-12 pb-6">
-          <div className="flex flex-col sm:flex-row sm:items-end gap-5">
-            <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl border-4 border-white bg-gradient-to-br from-violet-500 to-indigo-600 text-4xl font-extrabold text-white shadow-xl dark:border-neutral-900 overflow-hidden">
-              {shop.images && shop.images.length > 0 ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={shop.images[0]} alt={shop.name} className="h-full w-full object-cover" />
-              ) : (
-                shop.name.charAt(0)
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <h1 className="text-2xl font-bold text-neutral-900 dark:text-white truncate">{shop.name}</h1>
-              <div className="mt-2 flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400">
-                <MapPin className="h-4 w-4 text-violet-500 shrink-0" />
-                <span className="truncate">{shop.address}</span>
+        )}
+
+        {/* dots */}
+        {imgs.length > 1 && (
+          <div className="absolute bottom-[88px] left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+            {imgs.map((_, i) => <div key={i} className={`h-1.5 rounded-full transition-all ${i === heroIdx ? "w-5 bg-white" : "w-1.5 bg-white/40"}`} />)}
+          </div>
+        )}
+
+        {/* shop card overlay */}
+        <div className="absolute bottom-0 inset-x-0 p-5 z-10">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-black text-white tracking-tight">{shop.name}</h1>
+              <div className="mt-1.5 space-y-1">
+                <p className="flex items-center gap-1.5 text-xs text-white/80"><MapPin className="h-3.5 w-3.5 text-violet-300 shrink-0" />{shop.address}</p>
+                {shop.phone && (
+                  <a href={`tel:${shop.phone}`} className="flex items-center gap-1.5 text-xs text-white/90 font-medium w-fit">
+                    <Phone className="h-3.5 w-3.5 text-violet-300 shrink-0" />{shop.phone}
+                  </a>
+                )}
+                {shopRating && (
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex">{[1,2,3,4,5].map(s => <Star key={s} className={`h-3.5 w-3.5 ${s <= Math.round(shopRating) ? "fill-amber-400 text-amber-400" : "text-white/30"}`} />)}</div>
+                    <span className="text-xs font-bold text-amber-400">{shopRating.toFixed(1)}</span>
+                    <span className="text-xs text-white/50">({reviews.length})</span>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-          
-          {shop.description && (
-            <p className="mt-5 text-sm leading-relaxed text-neutral-600 dark:text-neutral-400">
-              {shop.description}
-            </p>
-          )}
-
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            {shop.phone && (
-              <a href={`tel:${shop.phone}`} className="inline-flex items-center gap-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 px-4 py-2.5 text-sm font-medium text-neutral-900 dark:text-white transition-colors hover:bg-neutral-200 dark:hover:bg-neutral-700">
-                <Phone className="h-4 w-4 text-violet-500" />
-                {shop.phone}
-              </a>
+            {/* socials */}
+            {(shop.instagram || shop.facebook || shop.tiktok) && (
+              <div className="flex flex-col gap-2 shrink-0">
+                {shop.instagram && <a href={shop.instagram} target="_blank" rel="noreferrer" className="h-9 w-9 rounded-full bg-white/20 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white active:scale-95 transition-transform"><IgIcon /></a>}
+                {shop.facebook  && <a href={shop.facebook}  target="_blank" rel="noreferrer" className="h-9 w-9 rounded-full bg-white/20 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white active:scale-95 transition-transform"><FbIcon /></a>}
+                {shop.tiktok    && <a href={shop.tiktok}    target="_blank" rel="noreferrer" className="h-9 w-9 rounded-full bg-white/20 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white active:scale-95 transition-transform"><TkIcon /></a>}
+              </div>
             )}
           </div>
+        </div>
+      </div>
 
-          {/* Client-side Amenities list */}
-          {shop.amenities && shop.amenities.length > 0 && (
-            <div className="mt-5 pt-4 border-t border-neutral-100 dark:border-neutral-800/80">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 dark:text-neutral-500 mb-2.5">
-                Équipements & Confort
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {AMENITIES_LIST.map((item) => {
-                  const hasAmenity = shop.amenities?.includes(item.key);
-                  if (!hasAmenity) return null;
-                  const Icon = item.icon;
+      {/* ── DESCRIPTION (collapsible) ── */}
+      {shop.description && (
+        <div className="mx-4 mt-4 bg-white rounded-2xl p-4 shadow-sm">
+          <p className={`text-sm text-gray-600 leading-relaxed ${showDesc ? "" : "line-clamp-2"}`}>{shop.description}</p>
+          <button onClick={() => setShowDesc(p => !p)} className="flex items-center gap-1 text-xs font-semibold text-violet-600 mt-2">
+            {showDesc ? <><ChevronUp className="h-3.5 w-3.5" />Moins</> : <><ChevronDown className="h-3.5 w-3.5" />Plus</>}
+          </button>
+        </div>
+      )}
+
+      {/* ── AMENITIES ── */}
+      {shop.amenities && shop.amenities.length > 0 && (
+        <div className="mx-4 mt-3 flex flex-wrap gap-2">
+          {AMENITIES.filter(a => shop.amenities!.includes(a.key)).map(a => {
+            const Icon = a.icon;
+            return (
+              <span key={a.key} className="inline-flex items-center gap-1.5 bg-violet-50 border border-violet-100 rounded-full px-3 py-1.5 text-xs font-semibold text-violet-700">
+                <Icon className="h-3.5 w-3.5" />{a.label}
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── PROMOTIONS ── */}
+      {displayPromotions.length > 0 && (
+        <div className="mx-4 mt-3 space-y-2">
+          {displayPromotions.map(promo => {
+            const isApplied = isPromo && promoDiscount === promo.discount.toString();
+            return (
+              <div key={promo.id} className="bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 rounded-2xl p-4 text-white flex items-center gap-3 shadow-md relative overflow-hidden">
+                <div className="h-12 w-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shrink-0 border border-white/30 shadow-inner">
+                  <span className="text-xl font-black">-{promo.discount}%</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-black text-sm tracking-tight truncate">{promo.title}</p>
+                    <span className="text-[10px] font-bold bg-white/20 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                      Offre
+                    </span>
+                  </div>
+                  {promo.description && <p className="text-xs text-white/90 mt-0.5 line-clamp-1">{promo.description}</p>}
+                  <p className="text-[10px] text-white/80 mt-1 flex items-center gap-1 font-medium">
+                    <CalendarDays className="h-3 w-3 inline shrink-0" />
+                    {promo.endDate ? `Jusqu'au ${safeFormatDate(promo.endDate)}` : "Offre à durée limitée"}
+                  </p>
+                </div>
+                <button 
+                  onClick={() => handleApplyPromo(promo)}
+                  className={`shrink-0 rounded-xl px-4 py-2.5 text-xs font-black shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer ${
+                    isApplied
+                      ? "bg-emerald-500 text-white ring-2 ring-white/60 hover:bg-emerald-600"
+                      : "bg-white text-orange-600 hover:bg-orange-50"
+                  }`}>
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {isApplied ? "Actif ✓" : "Profiter"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── TABS ── */}
+      <div 
+        ref={tabsRef}
+        id="booking-tabs"
+        className="mx-4 mt-4 bg-white rounded-2xl p-1.5 flex gap-1 shadow-sm scroll-mt-6"
+      >
+        {(["book","team","reviews"] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            className={`flex-1 rounded-xl py-3 text-sm font-bold transition-all ${tab === t ? "bg-violet-600 text-white shadow-sm" : "text-gray-400 hover:text-gray-600"}`}>
+            {t === "book" ? "Réserver" : t === "team" ? "Équipe" : `Avis ${reviews.length > 0 ? `(${reviews.length})` : ""}`}
+          </button>
+        ))}
+      </div>
+
+      {/* ── CONTENT ── */}
+      <div className="mx-4 mt-3 space-y-3">
+
+        {/* ── TAB BOOK ── */}
+        {tab === "book" && (
+          <>
+            {isPromo && promoDiscount && (
+              <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-red-50 to-orange-50 border border-red-200/80 rounded-2xl p-4 shadow-sm animate-fade-in">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-red-500 to-orange-500 text-white font-black text-sm flex items-center justify-center shrink-0 shadow-sm">
+                    -{promoDiscount}%
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-red-900 truncate">
+                      {activePromoTitle ? `Promo active : ${activePromoTitle}` : "Promo active"}
+                    </p>
+                    <p className="text-xs text-red-700/80 mt-0.5">
+                      {promoStart && promoEnd ? `Valable du ${safeFormatDate(promoStart)} au ${safeFormatDate(promoEnd)}` : "Remise immédiate appliquée"}
+                    </p>
+                    <p className="text-[11px] font-semibold text-emerald-700 mt-1 flex items-center gap-1">
+                      ✓ Prix barrés appliqués sur toutes les prestations
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleRemovePromo}
+                  className="shrink-0 text-xs font-semibold text-gray-500 hover:text-red-600 bg-white border border-gray-200 hover:border-red-200 px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
+                  title="Retirer la promotion"
+                >
+                  Retirer
+                </button>
+              </div>
+            )}
+
+            {/* STEP 1 */}
+            <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
+              <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-100">
+                <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${s1 ? "bg-green-500 text-white" : "bg-violet-600 text-white"}`}>
+                  {s1 ? <CheckCircle className="h-4 w-4" /> : "1"}
+                </div>
+                <p className="font-bold text-gray-900 text-sm">Choisir une prestation</p>
+                {s1 && (
+                  <div className="ml-auto text-right truncate max-w-[140px]">
+                    <span className="text-xs font-semibold text-violet-600 truncate block">{svc?.name}</span>
+                    {hasDiscount && svc && (
+                      <span className="text-[11px] font-bold text-red-600">
+                        {formatPrice(finalPrice)} <span className="line-through text-gray-400 font-normal">{formatPrice(origPrice)}</span>
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="p-3 space-y-2">
+                {shop.services.map(service => {
+                  const sel = booking.service === service.id;
+                  const p = hasDiscount ? service.price * (1 - discountVal / 100) : service.price;
                   return (
-                    <div
-                      key={item.key}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold shadow-sm ${item.color}`}
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                      <span>{item.label}</span>
-                    </div>
+                    <button key={service.id} onClick={() => setBooking(b => ({ ...b, service: service.id }))}
+                      className={`w-full flex items-center gap-3 rounded-xl p-3.5 text-left transition-all active:scale-[0.99] cursor-pointer ${sel ? "bg-violet-50 ring-2 ring-violet-500" : "bg-gray-50 hover:bg-gray-100"}`}>
+                      <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${sel ? "bg-violet-600 text-white" : "bg-white text-gray-400 shadow-sm"}`}>
+                        <Scissors className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-sm text-gray-900">{service.name}</p>
+                        <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5"><Clock className="h-3 w-3" />{service.duration} min</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        {hasDiscount ? (
+                          <div className="flex flex-col items-end">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs text-gray-400 line-through">
+                                {formatPrice(service.price)}
+                              </span>
+                              <span className="text-[10px] font-black bg-red-100 text-red-600 px-1.5 py-0.5 rounded-md">
+                                -{promoDiscount}%
+                              </span>
+                            </div>
+                            <p className="text-sm font-black text-red-600">
+                              {formatPrice(p)}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className={`text-sm font-black ${sel ? "text-violet-600" : "text-gray-900"}`}>{formatPrice(service.price)}</p>
+                        )}
+                      </div>
+                    </button>
                   );
                 })}
               </div>
             </div>
-          )}
-        </div>
-      </div>
 
-      <div className="mx-auto max-w-2xl px-4 py-8 space-y-10">
-        {/* Gallery Section */}
-        {shop.images && shop.images.length > 1 && (
-          <section className="animate-slide-up bg-white dark:bg-neutral-900 rounded-3xl p-6 border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-4">
-            <div className="flex items-center gap-2">
-              <ImageIcon className="h-5 w-5 text-violet-500" />
-              <h2 className="text-lg font-bold text-neutral-900 dark:text-white">Le Salon en Images</h2>
-            </div>
-            <div className="flex gap-4 overflow-x-auto pb-2 snap-x hide-scrollbar -mx-2 px-2">
-              {shop.images.slice(1).map((imgUrl, i) => (
-                <div
-                  key={i}
-                  className="snap-start shrink-0 relative aspect-[4/3] w-64 rounded-2xl overflow-hidden border border-neutral-200/50 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900 shadow-sm"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={imgUrl}
-                    alt={`Photo salon ${i + 2}`}
-                    className="h-full w-full object-cover hover:scale-105 transition-transform duration-300"
-                  />
+            {/* STEP 2 */}
+            <div className={`bg-white rounded-2xl overflow-hidden shadow-sm transition-opacity ${s1 ? "opacity-100" : "opacity-30 pointer-events-none"}`}>
+              <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-100">
+                <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${s2 ? "bg-green-500 text-white" : s1 ? "bg-violet-600 text-white" : "bg-gray-200 text-gray-400"}`}>
+                  {s2 ? <CheckCircle className="h-4 w-4" /> : "2"}
                 </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Team Section */}
-        {shop.barbers && shop.barbers.length > 0 && (
-          <section className="animate-slide-up bg-white dark:bg-neutral-900 rounded-3xl p-6 border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-4">
-            <div className="flex items-center gap-2">
-              <UserCircle2 className="h-5 w-5 text-violet-500" />
-              <h2 className="text-lg font-bold text-neutral-900 dark:text-white">Notre Équipe de Professionnels</h2>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {shop.barbers.map((barber) => {
-                const rating = getBarberRating(barber);
-                return (
-                  <div
-                    key={barber.id}
-                    onClick={() => setActiveBarberProfile(barber)}
-                    className="group flex items-center gap-4 rounded-2xl border border-neutral-100 hover:border-violet-200 bg-neutral-50/50 hover:bg-violet-50/20 p-4 transition-all duration-300 dark:border-neutral-800 dark:hover:border-violet-900/40 dark:bg-neutral-950/40 dark:hover:bg-violet-950/60 cursor-pointer shadow-sm"
-                  >
-                    <div className="relative shrink-0">
-                      {barber.user?.image ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={barber.user.image}
-                          alt={barber.user.name}
-                          className="h-16 w-16 rounded-2xl object-cover shadow border border-neutral-200/50 dark:border-neutral-800"
-                        />
-                      ) : (
-                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-400 to-purple-600 text-xl font-bold text-white shadow">
-                          {barber.user?.name?.charAt(0) || "?"}
-                        </div>
-                      )}
-                      {rating && (
-                        <div className="absolute -bottom-1.5 -right-1.5 flex items-center gap-0.5 rounded-lg bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
-                          <Star className="h-2.5 w-2.5 fill-white" />
-                          <span>{rating.toFixed(1)}</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-neutral-900 dark:text-white truncate group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
-                        {barber.user?.name}
-                      </h3>
-                      <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 line-clamp-2">
-                        {barber.bio || "Coiffeur visagiste passionné, spécialiste des styles modernes et coupes précises."}
-                      </p>
-                      <span className="inline-flex items-center text-[10px] font-bold text-violet-600 dark:text-violet-400 mt-2 hover:underline">
-                        Voir le profil &amp; réalisations <ChevronRight className="h-3 w-3 ml-0.5" />
-                      </span>
-                    </div>
+                <p className="font-bold text-gray-900 text-sm">Choisir un barbier</p>
+                {s2 && <span className="ml-auto text-xs font-semibold text-violet-600">{booking.barber === "any" ? "Premier dispo" : shop.barbers.find(b => b.id === booking.barber)?.user.name}</span>}
+              </div>
+              <div className="flex gap-3 overflow-x-auto p-4 hide-scrollbar">
+                {/* any */}
+                <button onClick={() => setBooking(b => ({ ...b, barber: "any", time: "", assignedBarberId: "" }))}
+                  className={`shrink-0 flex flex-col items-center gap-2 rounded-2xl w-24 py-4 px-2 transition-all active:scale-95 cursor-pointer ${booking.barber === "any" ? "bg-violet-50 ring-2 ring-violet-500" : "bg-gray-50"}`}>
+                  <div className={`h-12 w-12 rounded-full flex items-center justify-center ${booking.barber === "any" ? "bg-violet-600 text-white" : "bg-white text-gray-400 shadow-sm"}`}>
+                    <Sparkles className="h-5 w-5" />
                   </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* Step 1: Services */}
-        <section className="animate-slide-up">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 font-bold text-sm">1</div>
-            <h2 className="text-xl font-bold text-neutral-900 dark:text-white">Choisissez une prestation</h2>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {shop.services.map((service) => {
-              const isSelected = selectedService === service.id;
-              return (
-                <button
-                  key={service.id}
-                  onClick={() => handleServiceSelect(service.id)}
-                  className={`relative flex items-start gap-4 rounded-2xl border-2 p-4 text-left transition-all duration-300 ${
-                    isSelected
-                      ? "border-violet-600 bg-violet-50 shadow-md shadow-violet-500/10 dark:border-violet-500 dark:bg-violet-900/20"
-                      : "border-neutral-200 bg-white hover:border-violet-200 hover:bg-violet-50/50 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-violet-900/50"
-                  }`}
-                >
-                  <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-colors ${
-                    isSelected ? "bg-violet-600 text-white shadow-inner" : "bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400"
-                  }`}>
-                    <Scissors className="h-6 w-6" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-neutral-900 dark:text-white truncate">{service.name}</h3>
-                    <p className="mt-1 flex items-center text-xs text-neutral-500 dark:text-neutral-400">
-                      <Clock className="mr-1 h-3.5 w-3.5" /> {service.duration} min
-                    </p>
-                    {service.description && <p className="mt-1 text-xs text-neutral-500 line-clamp-2">{service.description}</p>}
-                  </div>
-                  <span className={`text-lg font-bold shrink-0 ${isSelected ? "text-violet-700 dark:text-violet-400" : "text-neutral-900 dark:text-white"}`}>
-                    {formatPrice(service.price)}
-                  </span>
+                  <p className="text-[11px] font-bold text-gray-800 text-center leading-tight">N'importe</p>
                 </button>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* Step 2: Barbers */}
-        <section className={`transition-all duration-500 ${selectedService ? "opacity-100 translate-y-0" : "opacity-50 pointer-events-none translate-y-4"}`}>
-          <div className="flex items-center gap-3 mb-5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 font-bold text-sm">2</div>
-            <h2 className="text-xl font-bold text-neutral-900 dark:text-white">Choisissez votre barbier</h2>
-          </div>
-          
-          <div className="flex gap-4 overflow-x-auto pb-4 px-1 -mx-1 snap-x hide-scrollbar">
-            {/* "Any Barber" Option */}
-            <button
-              onClick={() => handleBarberSelect("any")}
-              className={`snap-start shrink-0 w-36 rounded-2xl border-2 p-4 text-center transition-all duration-300 ${
-                selectedBarber === "any"
-                  ? "border-violet-600 bg-violet-50 shadow-md shadow-violet-500/10 dark:border-violet-500 dark:bg-violet-900/20"
-                  : "border-neutral-200 bg-white hover:border-violet-200 dark:border-neutral-800 dark:bg-neutral-900"
-              }`}
-            >
-              <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full transition-colors ${
-                selectedBarber === "any" ? "bg-violet-600 text-white" : "bg-neutral-100 text-neutral-500 dark:bg-neutral-800"
-              }`}>
-                <Sparkles className="h-6 w-6" />
-              </div>
-              <p className="mt-3 font-semibold text-sm text-neutral-900 dark:text-white">Peu importe</p>
-              <p className="mt-1 text-xs text-neutral-500">Le plus tôt</p>
-            </button>
-
-            {/* Specific Barbers */}
-            {shop.barbers.map((barber) => {
-              const rating = getBarberRating(barber);
-              const isSelected = selectedBarber === barber.id;
-              return (
-                <button
-                  key={barber.id}
-                  onClick={() => handleBarberSelect(barber.id)}
-                  className={`snap-start shrink-0 w-36 rounded-2xl border-2 p-4 text-center transition-all duration-300 flex flex-col items-center ${
-                    isSelected
-                      ? "border-violet-600 bg-violet-50 shadow-md shadow-violet-500/10 dark:border-violet-500 dark:bg-violet-900/20"
-                      : "border-neutral-200 bg-white hover:border-violet-200 dark:border-neutral-800 dark:bg-neutral-900"
-                  }`}
-                >
-                  <div className="relative">
-                    {barber.user?.image ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={barber.user.image}
-                        alt={barber.user.name}
-                        className="h-14 w-14 rounded-full object-cover shadow-inner border border-neutral-100 dark:border-neutral-800"
-                      />
-                    ) : (
-                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-600 text-lg font-bold text-white shadow-inner">
-                        {barber.user?.name?.charAt(0) || "?"}
+                {shop.barbers.map(barber => {
+                  const sel = booking.barber === barber.id;
+                  const r = getBRating(barber);
+                  return (
+                    <button key={barber.id} onClick={() => setBooking(b => ({ ...b, barber: barber.id, time: "", assignedBarberId: "" }))}
+                      className={`shrink-0 flex flex-col items-center gap-2 rounded-2xl w-24 py-4 px-2 transition-all active:scale-95 cursor-pointer ${sel ? "bg-violet-50 ring-2 ring-violet-500" : "bg-gray-50"}`}>
+                      <div className="relative">
+                        {barber.user.image
+                          // eslint-disable-next-line @next/next/no-img-element
+                          ? <img src={barber.user.image} alt={barber.user.name} className="h-12 w-12 rounded-full object-cover" />
+                          : <div className="h-12 w-12 rounded-full bg-gradient-to-br from-indigo-400 to-violet-600 flex items-center justify-center text-white font-bold text-base">{barber.user.name[0]}</div>}
+                        {sel && <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-green-500 border-2 border-white flex items-center justify-center"><CheckCircle className="h-3 w-3 text-white" /></div>}
                       </div>
-                    )}
-                    {isSelected && (
-                      <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-white border-2 border-white dark:border-neutral-900">
-                        <CheckCircle className="h-3 w-3" />
-                      </div>
-                    )}
-                  </div>
-                  <p className="mt-3 font-semibold text-sm text-neutral-900 dark:text-white w-full truncate">{barber.user?.name}</p>
-                  {rating && (
-                    <div className="mt-1 flex items-center gap-1 text-xs font-medium text-amber-500">
-                      <Star className="h-3.5 w-3.5 fill-amber-500" />{rating.toFixed(1)}
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </section>
+                      <p className="text-[11px] font-bold text-gray-800 truncate w-full text-center">{barber.user.name}</p>
+                      {r && <span className="text-[10px] font-bold text-amber-500 flex items-center gap-0.5"><Star className="h-2.5 w-2.5 fill-amber-500" />{r.toFixed(1)}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-        {/* Step 3: Date & Time */}
-        <section ref={dateTimeRef} className={`transition-all duration-500 ${selectedService && selectedBarber ? "opacity-100 translate-y-0" : "opacity-50 pointer-events-none translate-y-4"}`}>
-          <div className="flex items-center gap-3 mb-5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 font-bold text-sm">3</div>
-            <h2 className="text-xl font-bold text-neutral-900 dark:text-white">Date et Heure</h2>
-          </div>
- 
-          <div className="space-y-6 rounded-3xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900 shadow-sm">
-            {isPromo && promoDiscount && (
-              <div className="rounded-2xl border border-red-200/60 bg-gradient-to-br from-red-500/5 to-orange-500/5 p-4 dark:border-red-900/30 dark:bg-red-950/20 flex items-center gap-3 animate-pulse">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-600 text-white font-black text-sm shadow-md">
-                  -{promoDiscount}%
+            {/* STEP 3 */}
+            <div className={`bg-white rounded-2xl overflow-hidden shadow-sm transition-opacity ${s2 ? "opacity-100" : "opacity-30 pointer-events-none"}`}>
+              <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-100">
+                <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${s3 ? "bg-green-500 text-white" : s2 ? "bg-violet-600 text-white" : "bg-gray-200 text-gray-400"}`}>
+                  {s3 ? <CheckCircle className="h-4 w-4" /> : "3"}
                 </div>
-                <div>
-                  <h4 className="text-sm font-bold text-red-600 dark:text-red-400">
-                    Offre Promotionnelle Activable ! 🎉
-                  </h4>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5 leading-relaxed">
-                    Les tarifs réduits s&apos;appliqueront automatiquement pour tout créneau réservé entre le {promoStart} et le {promoEnd}.
-                  </p>
-                </div>
+                <p className="font-bold text-gray-900 text-sm">Date & Heure</p>
+                {s3 && <span className="ml-auto text-xs font-semibold text-violet-600">{safeFormatDate(booking.date)} · {formatTime(booking.time)}</span>}
               </div>
-            )}
-
-            <div>
-              <label className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 flex items-center gap-2 mb-2">
-                <CalendarDays className="h-4 w-4 text-violet-500" /> Date du rendez-vous
-              </label>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => handleDateSelect(e.target.value)}
-                min={isPromo && promoStart ? promoStart : today}
-                max={isPromo && promoEnd ? promoEnd : undefined}
-                className="flex h-14 w-full rounded-2xl border-2 border-neutral-200 bg-neutral-50 px-4 text-base font-medium transition-colors focus:border-violet-500 focus:outline-none focus:ring-4 focus:ring-violet-500/10 dark:border-neutral-800 dark:bg-neutral-950 dark:text-white"
-              />
-            </div>
-            {selectedDate && (
-              <div>
-                <label className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 flex items-center gap-2 mb-3">
-                  <Clock className="h-4 w-4 text-violet-500" /> Créneaux disponibles
-                </label>
-                
-                {slotsLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-10 w-10 animate-[spin_1.5s_linear_infinite] text-violet-600 dark:text-violet-400" />
-                  </div>
-                ) : availableSlots.length > 0 ? (
-                  <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-                    {availableSlots.map((slot, idx) => {
-                      const isSelected = selectedTime === slot.time;
-                      return (
-                        <button
-                          key={`${slot.time}-${idx}`}
-                          onClick={() => handleTimeSelect(slot.time, slot.barberId)}
-                          className={`rounded-xl py-3 text-sm font-bold transition-all duration-200 ${
-                            isSelected
-                              ? "bg-violet-600 text-white shadow-md shadow-violet-600/30 scale-105"
-                              : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
-                          }`}
-                        >
-                          {formatTime(slot.time)}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center dark:border-amber-900/50 dark:bg-amber-950/20">
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40 mb-3">
-                      <Clock className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-                    </div>
-                    <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
-                      Aucun créneau disponible à cette date.
-                    </p>
-                    <p className="text-xs text-amber-600 mt-1 dark:text-amber-400/80">Veuillez choisir une autre date ou un autre barbier.</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Reviews Section */}
-        <section className="animate-slide-up bg-white dark:bg-neutral-900 rounded-3xl p-6 border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-6">
-          <div className="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800/80 pb-4">
-            <div className="flex items-center gap-2">
-              <Star className="h-5 w-5 text-amber-500 fill-amber-500" />
-              <h2 className="text-lg font-bold text-neutral-900 dark:text-white">Avis de nos Clients</h2>
-            </div>
-            {reviews.length > 0 && (
-              <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/50 px-3 py-1 rounded-full text-xs font-bold text-amber-600 dark:text-amber-400">
-                ⭐ {(reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1)} / 5 ({reviews.length} {reviews.length > 1 ? "avis" : "avis"})
-              </div>
-            )}
-          </div>
-
-          {reviewsLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-[spin_1.5s_linear_infinite] text-violet-500" />
-            </div>
-          ) : reviews.length === 0 ? (
-            <div className="text-center py-10 px-4">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-400 mb-3">
-                <Star className="h-6 w-6" />
-              </div>
-              <p className="text-sm font-semibold text-neutral-900 dark:text-white">Aucun avis pour le moment</p>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">Soyez le premier à réserver et à donner votre avis !</p>
-            </div>
-          ) : (
-            <div className="space-y-4 max-h-[450px] overflow-y-auto pr-1 divide-y divide-neutral-100 dark:divide-neutral-800">
-              {reviews.map((rev, index) => (
-                <div key={rev.id} className={`pt-4 ${index === 0 ? "pt-0" : ""}`}>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      {rev.client?.image ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={rev.client.image}
-                          alt={rev.client.name}
-                          className="h-10 w-10 rounded-full object-cover shadow-sm border border-neutral-200/50 dark:border-neutral-700"
-                        />
-                      ) : (
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800 text-sm font-bold text-neutral-600 dark:text-neutral-300">
-                          {rev.client?.name?.charAt(0) || "?"}
-                        </div>
-                      )}
-                      <div>
-                        <p className="text-sm font-bold text-neutral-900 dark:text-white">
-                          {rev.client?.name || "Client vérifié"}
-                        </p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <div className="flex">
-                            {[1, 2, 3, 4, 5].map((s) => (
-                              <Star
-                                key={s}
-                                className={`h-3 w-3 ${
-                                  s <= rev.rating ? "text-amber-500 fill-amber-500" : "text-neutral-200 dark:text-neutral-700"
-                                }`}
-                              />
-                            ))}
-                          </div>
-                          <span className="text-[10px] text-neutral-400 dark:text-neutral-500 font-semibold">•</span>
-                          <span className="text-[10px] text-neutral-400 dark:text-neutral-500 font-semibold">
-                            Coiffé par {rev.barber?.user?.name || "un pro"}
+              <div className="p-4 space-y-4">
+                {/* Calendar */}
+                {(() => {
+                  const now = new Date();
+                  const yyyy = now.getFullYear();
+                  
+                  const minDateStr = isPromo && promoStart ? (promoStart > todayStr ? promoStart : todayStr) : todayStr;
+                  const maxDateStr = isPromo && promoEnd ? promoEnd : `${yyyy + (now.getMonth() >= 10 ? 1 : 0)}-${String(((now.getMonth() + 2) % 12) + 1).padStart(2, "0")}-28`;
+                  
+                  const firstDay = new Date(calYear, calMonth, 1).getDay();
+                  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+                  const monthName = new Date(calYear, calMonth).toLocaleDateString("fr-FR", { month: "long" });
+                  
+                  const viewMonthStart = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-01`;
+                  const viewMonthEnd = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`;
+                  
+                  const canPrev = viewMonthStart > minDateStr.slice(0, 7) + "-01";
+                  const canNext = viewMonthEnd < maxDateStr;
+                  
+                  const days = Array.from({ length: firstDay }, () => null).concat(Array.from({ length: daysInMonth }, (_, i) => i + 1));
+                  
+                  return (
+                    <div className="bg-gray-50 rounded-2xl p-4">
+                      {isPromo && (promoStart || promoEnd) && (
+                        <div className="mb-3 px-3 py-2 bg-amber-50 border border-amber-200/60 rounded-xl text-xs text-amber-800 flex items-center justify-between">
+                          <span className="font-semibold flex items-center gap-1.5">
+                            <Sparkles className="h-3.5 w-3.5 text-amber-600" />
+                            Dates de l'offre
+                          </span>
+                          <span className="font-bold">
+                            {promoStart ? safeFormatDate(promoStart) : ""} → {promoEnd ? safeFormatDate(promoEnd) : ""}
                           </span>
                         </div>
+                      )}
+                      <div className="flex items-center justify-between mb-4">
+                        <button onClick={() => canPrev && setCalMonth(m => m === 0 ? (setCalYear(y => y - 1), 11) : m - 1)}
+                          className={`h-8 w-8 rounded-lg flex items-center justify-center ${canPrev ? "bg-white text-gray-700 active:scale-95 shadow-sm" : "text-gray-300"}`} disabled={!canPrev}>
+                          ‹
+                        </button>
+                        <p className="font-black text-gray-900 capitalize">{monthName} {calYear}</p>
+                        <button onClick={() => canNext && setCalMonth(m => m === 11 ? (setCalYear(y => y + 1), 0) : m + 1)}
+                          className={`h-8 w-8 rounded-lg flex items-center justify-center ${canNext ? "bg-white text-gray-700 active:scale-95 shadow-sm" : "text-gray-300"}`} disabled={!canNext}>
+                          ›
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-7 gap-1 mb-2">
+                        {["D", "L", "M", "M", "J", "V", "S"].map((d, i) => (
+                          <div key={i} className="h-8 flex items-center justify-center text-[10px] font-bold text-gray-400">{d}</div>
+                        ))}
+                      </div>
+                      <div className="grid grid-cols-7 gap-1">
+                        {days.map((day, idx) => {
+                          if (!day) return <div key={idx} />;
+                          const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                          const isPast = dateStr < todayStr;
+                          const isBeforeMin = dateStr < minDateStr;
+                          const isAfterMax = isPromo && promoEnd ? dateStr > promoEnd : false;
+                          const disabled = isPast || isBeforeMin || isAfterMax;
+                          const selected = booking.date === dateStr;
+                          
+                          return (
+                            <button key={idx} onClick={() => !disabled && setBooking(b => ({ ...b, date: dateStr, time: "", assignedBarberId: "" }))}
+                              disabled={disabled}
+                              className={`h-10 rounded-lg flex items-center justify-center text-sm font-bold transition-all ${
+                                selected ? "bg-violet-600 text-white scale-105 shadow-md" :
+                                disabled ? "text-gray-300 cursor-not-allowed" :
+                                "bg-white text-gray-700 hover:bg-violet-50 active:scale-95 shadow-sm cursor-pointer"
+                              }`}>
+                              {day}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
-                    <span className="text-[10px] text-neutral-400 dark:text-neutral-500 font-medium">
-                      {new Date(rev.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
-                    </span>
-                  </div>
-                  {rev.comment && (
-                    <p className="mt-3 text-sm text-neutral-600 dark:text-neutral-300 bg-neutral-50/50 dark:bg-neutral-950/40 p-3.5 rounded-2xl border border-neutral-100 dark:border-neutral-800/40 leading-relaxed italic">
-                      “ {rev.comment} ”
-                    </p>
-                  )}
-                </div>
-              ))}
+                  );
+                })()}
+                
+                {/* Time slots */}
+                {booking.date && (slotsLoading
+                  ? <div className="flex justify-center py-6"><Loader2 className="h-6 w-6 animate-spin text-violet-500" /></div>
+                  : slots.length > 0
+                    ? <div className="space-y-2">
+                        <p className="text-xs font-bold text-gray-500 px-1">Créneaux disponibles</p>
+                        <div className="grid grid-cols-4 gap-2">
+                          {slots.map((s, i) => (
+                            <button key={`${s.time}-${i}`} onClick={() => setBooking(b => ({ ...b, time: s.time, assignedBarberId: s.barberId }))}
+                              className={`rounded-xl py-3 text-xs font-bold transition-all active:scale-95 cursor-pointer ${booking.time === s.time ? "bg-violet-600 text-white shadow-md" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
+                              {formatTime(s.time)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    : <p className="text-center text-sm text-gray-400 py-5 bg-gray-50 rounded-xl">Aucun créneau · essayez une autre date.</p>
+                )}
+              </div>
             </div>
-          )}
-        </section>
+          </>
+        )}
+
+        {/* ── TAB TEAM ── */}
+        {tab === "team" && (
+          <div className="space-y-3">
+            {shop.barbers.length === 0
+              ? <p className="text-center text-gray-400 py-12 text-sm">Aucun barbier.</p>
+              : shop.barbers.map(barber => {
+                  const r = getBRating(barber);
+                  return (
+                    <div key={barber.id} onClick={() => setActiveBarber(barber)}
+                      className="bg-white rounded-2xl p-4 flex items-center gap-4 shadow-sm active:scale-[0.99] transition-transform cursor-pointer">
+                      {barber.user.image
+                        // eslint-disable-next-line @next/next/no-img-element
+                        ? <img src={barber.user.image} alt={barber.user.name} className="h-14 w-14 rounded-2xl object-cover shrink-0" />
+                        : <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-indigo-400 to-violet-600 flex items-center justify-center text-xl font-bold text-white shrink-0">{barber.user.name[0]}</div>}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-gray-900">{barber.user.name}</p>
+                        {r && <div className="flex items-center gap-1 mt-0.5">{[1,2,3,4,5].map(s => <Star key={s} className={`h-3 w-3 ${s <= Math.round(r) ? "fill-amber-400 text-amber-400" : "text-gray-200"}`} />)}<span className="text-xs text-gray-500 ml-1">{r.toFixed(1)}</span></div>}
+                        <p className="text-xs text-gray-400 mt-1 line-clamp-2">{barber.bio || "Expert coiffure"}</p>
+                      </div>
+                      <button onClick={e => { e.stopPropagation(); setTab("book"); setBooking(b => ({ ...b, barber: barber.id, time: "", assignedBarberId: "" })); }}
+                        className="shrink-0 rounded-xl bg-violet-600 px-3 py-2 text-xs font-bold text-white active:scale-95 transition-transform">
+                        Choisir
+                      </button>
+                    </div>
+                  );
+                })}
+          </div>
+        )}
+
+        {/* ── TAB REVIEWS ── */}
+        {tab === "reviews" && (
+          <div className="space-y-3">
+            {reviews.length === 0
+              ? <div className="bg-white rounded-2xl p-12 text-center shadow-sm"><Star className="h-8 w-8 text-gray-200 mx-auto mb-2" /><p className="font-bold text-gray-900 text-sm">Aucun avis</p><p className="text-xs text-gray-400 mt-1">Soyez le premier !</p></div>
+              : <>
+                  {shopRating && (
+                    <div className="bg-white rounded-2xl p-5 shadow-sm flex items-center gap-5">
+                      <div className="text-center">
+                        <p className="text-4xl font-black text-gray-900">{shopRating.toFixed(1)}</p>
+                        <div className="flex mt-1">{[1,2,3,4,5].map(s => <Star key={s} className={`h-3.5 w-3.5 ${s <= Math.round(shopRating) ? "fill-amber-400 text-amber-400" : "text-gray-200"}`} />)}</div>
+                        <p className="text-xs text-gray-400 mt-1">{reviews.length} avis</p>
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        {[5,4,3,2,1].map(s => { const c = reviews.filter(r => r.rating===s).length; return (
+                          <div key={s} className="flex items-center gap-2">
+                            <span className="text-xs text-gray-400 w-2">{s}</span>
+                            <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-amber-400 rounded-full" style={{ width: `${reviews.length ? (c/reviews.length)*100 : 0}%` }} /></div>
+                          </div>
+                        ); })}
+                      </div>
+                    </div>
+                  )}
+                  {reviews.map(rev => (
+                    <div key={rev.id} className="bg-white rounded-2xl p-4 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          {rev.client?.image
+                            // eslint-disable-next-line @next/next/no-img-element
+                            ? <img src={rev.client.image} alt={rev.client.name} className="h-9 w-9 rounded-full object-cover" />
+                            : <div className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center text-sm font-bold text-gray-600">{rev.client?.name?.[0]||"?"}</div>}
+                          <div>
+                            <p className="text-sm font-bold text-gray-900">{rev.client?.name||"Client"}</p>
+                            <div className="flex mt-0.5">{[1,2,3,4,5].map(s => <Star key={s} className={`h-3 w-3 ${s<=rev.rating ? "fill-amber-400 text-amber-400" : "text-gray-200"}`} />)}</div>
+                          </div>
+                        </div>
+                        <span className="text-[10px] text-gray-400">{new Date(rev.createdAt).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}</span>
+                      </div>
+                      {rev.comment && <p className="mt-3 text-sm text-gray-500 bg-gray-50 p-3 rounded-xl italic">"{rev.comment}"</p>}
+                    </div>
+                  ))}
+                </>}
+          </div>
+        )}
       </div>
 
-      {/* Floating Action Button / Sticky Bottom Bar */}
-      <div className={`fixed bottom-28 sm:bottom-0 left-0 right-0 z-30 transition-all duration-500 ease-in-out px-4 sm:px-0 ${
-        selectedService && selectedBarber && selectedDate && selectedTime ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0 pointer-events-none"
-      }`}>
-        <div className="mx-auto max-w-2xl bg-white/90 backdrop-blur-xl border border-neutral-200/50 sm:border-x-0 sm:border-b-0 p-4 rounded-3xl sm:rounded-none shadow-2xl shadow-violet-500/10 dark:bg-neutral-950/90 dark:border-neutral-800/50">
-          <div className="mx-auto flex max-w-2xl items-center justify-between gap-4">
-            <div className="min-w-0 flex-1">
-              <p className="text-base font-bold text-neutral-900 dark:text-white truncate">
-                {selectedServiceData?.name}
-              </p>
-              <p className="text-sm text-neutral-500 font-medium flex items-center gap-1.5">
-                <CalendarDays className="h-3.5 w-3.5" />
-                {formatDate(selectedDate)} à {formatTime(selectedTime)}
-              </p>
-            </div>
-            <Button
-              onClick={() => setShowBookingSheet(true)}
-              size="lg"
-              className="shrink-0 rounded-2xl px-8 shadow-lg shadow-violet-600/20 font-bold"
-            >
-              Réserver • {isPromo ? (
-                <span className="flex items-center gap-2">
-                  <span className="line-through text-xs opacity-60 font-normal">{formatPrice(originalPrice)}</span>
-                  <span>{formatPrice(discountedPrice)}</span>
-                </span>
-              ) : formatPrice(originalPrice)}
-            </Button>
+      {/* ── STICKY CTA ── */}
+      <div className={`fixed bottom-[72px] inset-x-0 z-30 px-4 pb-2 transition-all duration-300 ${ready ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0 pointer-events-none"}`}>
+        <div className="mx-auto max-w-lg flex items-center gap-3 bg-white rounded-2xl p-3.5 shadow-xl border border-gray-100">
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-sm text-gray-900 truncate">{svc?.name}</p>
+            <p className="text-xs text-gray-400">{safeFormatDate(booking.date)} · {formatTime(booking.time)}</p>
           </div>
+          <button onClick={() => setShowSheet(true)}
+            className="shrink-0 rounded-xl bg-violet-600 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-violet-200 active:scale-95 transition-transform flex items-center gap-2 cursor-pointer">
+            {hasDiscount ? (
+              <span className="flex items-center gap-1.5">
+                <span className="text-xs text-violet-200 line-through font-normal">{formatPrice(origPrice)}</span>
+                <span>{formatPrice(finalPrice)}</span>
+              </span>
+            ) : (
+              <span>{formatPrice(finalPrice)}</span>
+            )}
+            <span>→</span>
+          </button>
         </div>
       </div>
 
-      {/* Confirmation Bottom Sheet */}
-      {showBookingSheet && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 pb-28 sm:p-0 sm:pb-0">
-          <div className="absolute inset-0 bg-neutral-900/60 backdrop-blur-sm transition-opacity" onClick={() => setShowBookingSheet(false)} />
-          <div
-            ref={sheetRef}
-            className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl animate-slide-up dark:bg-neutral-900 sm:rounded-3xl"
-          >
-            <div className="mx-auto mb-6 h-1.5 w-12 rounded-full bg-neutral-200 dark:bg-neutral-800 sm:hidden" />
-            
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-neutral-900 dark:text-white">Récapitulatif</h3>
-              <button onClick={() => setShowBookingSheet(false)} className="rounded-full p-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-500 transition-colors dark:bg-neutral-800 dark:hover:bg-neutral-700">
-                <X className="h-5 w-5" />
-              </button>
+      {/* ── BOTTOM SHEET ── */}
+      {showSheet && (
+        <div className="fixed inset-0 z-50 flex items-end">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowSheet(false)} />
+          <div className="relative w-full bg-white rounded-t-3xl shadow-2xl max-h-[90dvh] overflow-y-auto">
+            <div className="flex justify-center pt-3 pb-2"><div className="h-1 w-10 bg-gray-200 rounded-full" /></div>
+            <div className="flex items-center justify-between px-5 py-3">
+              <p className="font-black text-gray-900">Récapitulatif</p>
+              <button onClick={() => setShowSheet(false)} className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500"><X className="h-4 w-4" /></button>
             </div>
+            <div className="px-5 pb-8 space-y-4">
+              <div className="space-y-3 bg-gray-50 rounded-2xl p-4 text-sm">
+                {[
+                  ["Service", svc?.name || "—"],
+                  ["Barbier", booking.barber === "any" ? "Premier disponible" : shop.barbers.find(b => b.id === booking.barber)?.user.name || "—"],
+                  ["Date", safeFormatDate(booking.date)],
+                  ["Heure", formatTime(booking.time)]
+                ].map(([k, v]) => (
+                  <div key={k} className="flex justify-between">
+                    <span className="text-gray-400">{k}</span>
+                    <span className="font-semibold text-gray-900">{v}</span>
+                  </div>
+                ))}
 
-            <div className="space-y-4 rounded-2xl bg-neutral-50 p-5 text-sm dark:bg-neutral-800/50">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">
-                  <Scissors className="h-5 w-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-neutral-900 dark:text-white truncate">{selectedServiceData?.name}</p>
-                  <p className="text-violet-600 font-bold dark:text-violet-400 flex items-center gap-2">
-                    {isPromo ? (
-                      <>
-                        <span className="line-through text-xs text-neutral-400 font-normal">{formatPrice(originalPrice)}</span>
-                        <span className="text-red-500 font-black">{formatPrice(discountedPrice)} (-{promoDiscount}%)</span>
-                      </>
+                {/* Price summary line with crossed out price */}
+                <div className="flex justify-between items-center border-t border-gray-200/60 pt-3">
+                  <span className="text-gray-500 font-medium">Prix total</span>
+                  <div className="text-right">
+                    {hasDiscount ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400 line-through">{formatPrice(origPrice)}</span>
+                        <span className="font-black text-base text-red-600">{formatPrice(finalPrice)}</span>
+                        <span className="text-[10px] font-black bg-red-100 text-red-600 px-1.5 py-0.5 rounded-md">-{promoDiscount}%</span>
+                      </div>
                     ) : (
-                      formatPrice(originalPrice)
+                      <span className="font-black text-base text-gray-900">{formatPrice(origPrice)}</span>
                     )}
-                  </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="h-px bg-neutral-200 dark:bg-neutral-700/50" />
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-neutral-500 mb-1">Date</p>
-                  <p className="font-medium text-neutral-900 dark:text-white flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5 text-violet-500"/>{formatDate(selectedDate)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-neutral-500 mb-1">Heure</p>
-                  <p className="font-medium text-neutral-900 dark:text-white flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-violet-500"/>{formatTime(selectedTime)}</p>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-xs text-neutral-500 mb-1">Barbier</p>
-                  <p className="font-medium text-neutral-900 dark:text-white flex items-center gap-1.5"><UserCircle2 className="h-3.5 w-3.5 text-violet-500"/>{shop.barbers.find(b => b.id === assignedBarberId)?.user?.name || "Automatique"}</p>
-                </div>
+              <div>
+                <p className="text-xs font-semibold text-gray-500 mb-2">Note (optionnel)</p>
+                <textarea value={booking.notes} onChange={e => setBooking(b => ({ ...b, notes: e.target.value }))} rows={2}
+                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:border-violet-500 focus:outline-none resize-none"
+                  placeholder="Ex: laisser de la longueur..." />
               </div>
-            </div>
-
-            <div className="mt-6">
-              <label className="mb-2 block text-sm font-semibold text-neutral-700 dark:text-neutral-300">Un mot pour le barbier ? <span className="text-neutral-400 font-normal">(optionnel)</span></label>
-              <textarea
-                value={notes}
-                onChange={(e) => handleNotesChange(e.target.value)}
-                rows={3}
-                className="flex w-full rounded-2xl border-2 border-neutral-200 bg-white px-4 py-3 text-sm transition-colors focus:border-violet-500 focus:outline-none focus:ring-4 focus:ring-violet-500/10 dark:border-neutral-800 dark:bg-neutral-950 dark:text-white resize-none"
-                placeholder="Ex: J'aimerais garder un peu de longueur..."
-              />
-            </div>
-
-            <div className="mt-8 pt-4 border-t border-neutral-100 dark:border-neutral-800">
-              <Button onClick={handleBook} disabled={submitting} className="w-full rounded-2xl py-6 text-base font-bold shadow-xl shadow-violet-500/20 gap-2" size="lg">
+              <button onClick={handleBook} disabled={submitting}
+                className="w-full rounded-2xl bg-violet-600 py-4 text-sm font-black text-white shadow-lg shadow-violet-200 active:scale-[0.99] transition-transform disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer">
                 {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle className="h-5 w-5" />}
-                {submitting ? "Confirmation en cours..." : "Confirmer ma réservation"}
-              </Button>
+                {submitting ? "Confirmation..." : "Confirmer"}
+              </button>
+              <div className="h-2" />
             </div>
           </div>
         </div>
       )}
 
-      {/* Barber Profile Modal */}
-      {activeBarberProfile && (
-        <Modal
-          isOpen={!!activeBarberProfile}
-          onClose={() => setActiveBarberProfile(null)}
-          title={`Profil de ${activeBarberProfile.user.name}`}
-        >
-          <div className="space-y-6 max-h-[80vh] overflow-y-auto pr-1">
-            <div className="flex flex-col items-center text-center gap-3">
-              {activeBarberProfile.user.image ? (
+      {/* ── GALLERY ── */}
+      {showGallery && (
+        <div className="fixed inset-0 z-50 bg-black flex flex-col">
+          <div className="flex items-center justify-between p-4">
+            <p className="text-white font-bold">Photos</p>
+            <button onClick={() => setShowGallery(false)} className="h-9 w-9 rounded-full bg-white/10 flex items-center justify-center text-white"><X className="h-5 w-5" /></button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 grid grid-cols-2 gap-2 content-start">
+            {imgs.map((img, i) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={i} src={img} alt="" onClick={() => { setHeroIdx(i); setShowGallery(false); }}
+                className="aspect-square w-full object-cover rounded-2xl cursor-pointer active:opacity-70" />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── BARBER MODAL ── */}
+      {activeBarber && (
+        <Modal isOpen onClose={() => setActiveBarber(null)} title={activeBarber.user.name}>
+          <div className="space-y-4 max-h-[75dvh] overflow-y-auto pr-1">
+            <div className="flex flex-col items-center gap-3 text-center">
+              {activeBarber.user.image
                 // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={activeBarberProfile.user.image}
-                  alt={activeBarberProfile.user.name}
-                  className="h-24 w-24 rounded-full object-cover shadow-lg border-2 border-violet-100 dark:border-violet-900"
-                />
-              ) : (
-                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-600 text-3xl font-bold text-white shadow-lg">
-                  {activeBarberProfile.user.name.charAt(0)}
-                </div>
-              )}
-              <div>
-                <h3 className="text-xl font-bold text-neutral-900 dark:text-white">
-                  {activeBarberProfile.user.name}
-                </h3>
-                {getBarberRating(activeBarberProfile) && (
-                  <div className="mt-1 flex items-center justify-center gap-1 text-sm font-bold text-amber-500 bg-amber-50 dark:bg-amber-950/20 px-3 py-1 rounded-full border border-amber-100 dark:border-amber-900/50 w-fit mx-auto">
-                    <Star className="h-4 w-4 fill-amber-500" />
-                    <span>{getBarberRating(activeBarberProfile)!.toFixed(1)} / 5</span>
+                ? <img src={activeBarber.user.image} alt={activeBarber.user.name} className="h-20 w-20 rounded-full object-cover" />
+                : <div className="h-20 w-20 rounded-full bg-gradient-to-br from-indigo-400 to-violet-600 flex items-center justify-center text-3xl font-bold text-white">{activeBarber.user.name[0]}</div>}
+              {getBRating(activeBarber) && <div className="flex items-center gap-1">{[1,2,3,4,5].map(s => <Star key={s} className={`h-4 w-4 ${s <= Math.round(getBRating(activeBarber)!) ? "fill-amber-400 text-amber-400" : "text-gray-200"}`} />)}<span className="text-sm font-bold text-gray-600 ml-1">{getBRating(activeBarber)!.toFixed(1)}</span></div>}
+            </div>
+            <p className="text-sm text-gray-500 bg-gray-50 p-4 rounded-2xl leading-relaxed">{activeBarber.bio || "Expert des coupes modernes."}</p>
+            {activeBarber.gallery && activeBarber.gallery.length > 0 && (
+              <div className="grid grid-cols-2 gap-2">
+                {activeBarber.gallery.map(p => (
+                  <div key={p.id} className="aspect-square rounded-2xl overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={p.url} alt="" className="h-full w-full object-cover" />
                   </div>
-                )}
-              </div>
-            </div>
-
-            <div className="border-t border-neutral-100 dark:border-neutral-800/80 pt-4">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400 dark:text-neutral-500 mb-2">
-                À propos / Biographie
-              </h4>
-              <p className="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed bg-neutral-50 dark:bg-neutral-950 p-4 rounded-2xl border border-neutral-100 dark:border-neutral-800/50">
-                {activeBarberProfile.bio || "Coiffeur visagiste chevronné et passionné, expert des coiffures précises, des rasages à l'ancienne et des rituels de soin de la barbe haut de gamme."}
-              </p>
-            </div>
-
-            {/* Barber Realizations Gallery */}
-            {activeBarberProfile.gallery && activeBarberProfile.gallery.length > 0 && (
-              <div className="border-t border-neutral-100 dark:border-neutral-800/80 pt-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400 dark:text-neutral-500 mb-3">
-                  Réalisations de {activeBarberProfile.user.name}
-                </h4>
-                <div className="grid grid-cols-2 gap-3">
-                  {activeBarberProfile.gallery.map((photo) => (
-                    <div
-                      key={photo.id}
-                      className="group relative aspect-square rounded-2xl overflow-hidden border border-neutral-200/50 dark:border-neutral-800/80 bg-neutral-50 dark:bg-neutral-900 shadow-sm"
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={photo.url}
-                        alt={photo.caption || "Réalisation"}
-                        className="h-full w-full object-cover hover:scale-105 transition-transform duration-300"
-                      />
-                      {photo.caption && (
-                        <div className="absolute inset-x-0 bottom-0 bg-black/60 p-2 text-[10px] text-white backdrop-blur-[2px] truncate">
-                          {photo.caption}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                ))}
               </div>
             )}
-
-            <div className="flex flex-col gap-2 pt-4 border-t border-neutral-100 dark:border-neutral-800">
-              <Button
-                onClick={() => {
-                  handleBarberSelect(activeBarberProfile.id);
-                  setActiveBarberProfile(null);
-                  toast(`Barbier ${activeBarberProfile.user.name} sélectionné !`, "success");
-                }}
-                className="w-full rounded-2xl py-6 font-bold shadow-lg shadow-violet-500/20"
-              >
-                Prendre rendez-vous avec {activeBarberProfile.user.name}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setActiveBarberProfile(null)}
-                className="w-full rounded-2xl py-6 font-medium"
-              >
-                Fermer
-              </Button>
+            <div className="flex flex-col gap-2 pb-2">
+              <button onClick={() => { setTab("book"); setBooking(b => ({ ...b, barber: activeBarber.id, time: "", assignedBarberId: "" })); setActiveBarber(null); toast(`${activeBarber.user.name} sélectionné !`, "success"); }}
+                className="w-full rounded-2xl bg-violet-600 py-4 text-sm font-black text-white active:scale-[0.99] transition-transform">
+                Réserver avec {activeBarber.user.name}
+              </button>
+              <button onClick={() => setActiveBarber(null)} className="w-full rounded-2xl border border-gray-200 py-4 text-sm font-semibold text-gray-600">Fermer</button>
             </div>
           </div>
         </Modal>
