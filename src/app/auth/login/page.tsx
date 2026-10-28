@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Scissors, Eye, EyeOff, Sparkles, ArrowRight } from "lucide-react";
+import { Scissors, Eye, EyeOff, Sparkles, ArrowRight, ShieldCheck, User, Store } from "lucide-react";
 import { signIn } from "next-auth/react";
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -100,6 +100,33 @@ export default function LoginPage() {
     }
   };
 
+  const handleQuickDemoLogin = async (demoEmail: string, demoPass: string) => {
+    setEmail(demoEmail);
+    setPassword(demoPass);
+    setError(null);
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: demoEmail, password: demoPass }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Identifiants de démo invalides");
+      }
+
+      const target = roleRedirect[data.user?.role] || "/client/search";
+      router.push(target);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de la connexion démo");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSocialLogin = async (provider: string) => {
     if (provider === "Google") {
       setLoading(true);
@@ -124,7 +151,7 @@ export default function LoginPage() {
         <div className="backdrop-blur-3xl bg-neutral-900/40 border border-neutral-800 rounded-[32px] p-8 sm:p-10 shadow-2xl">
           
           {/* Header */}
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-lg shadow-violet-500/20 border border-white/10 transform hover:scale-105 transition-transform duration-300">
               <Scissors className="h-6 w-6 text-white" />
             </div>
@@ -136,6 +163,57 @@ export default function LoginPage() {
             <p className="text-sm text-neutral-400">
               Connectez-vous pour accéder à BarberPro
             </p>
+          </div>
+
+          {/* Quick Demo Access Bar */}
+          <div className="mb-6 rounded-2xl bg-gradient-to-b from-neutral-800/80 to-neutral-900/80 p-3.5 border border-neutral-700/60 shadow-lg">
+            <div className="flex items-center justify-between mb-2.5">
+              <span className="text-[11px] font-black uppercase tracking-wider text-violet-300 flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                Accès Rapide Démo ⚡
+              </span>
+              <span className="text-[10px] text-neutral-400 font-medium">1 clic</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => handleQuickDemoLogin("admin@gmail.com", "123456")}
+                className="flex flex-col items-center justify-center p-2 rounded-xl bg-neutral-900/90 hover:bg-violet-600/25 border border-neutral-700/60 hover:border-violet-500/60 text-white transition-all active:scale-95 disabled:opacity-50 cursor-pointer group"
+              >
+                <div className="h-7 w-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                  <ShieldCheck className="h-4 w-4" />
+                </div>
+                <span className="text-xs font-black">Admin</span>
+                <span className="text-[9px] text-neutral-400 group-hover:text-violet-200">Gérant</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => handleQuickDemoLogin("chacha@gmail.com", "123456")}
+                className="flex flex-col items-center justify-center p-2 rounded-xl bg-neutral-900/90 hover:bg-violet-600/25 border border-neutral-700/60 hover:border-violet-500/60 text-white transition-all active:scale-95 disabled:opacity-50 cursor-pointer group"
+              >
+                <div className="h-7 w-7 rounded-lg bg-violet-500/20 text-violet-400 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                  <Scissors className="h-4 w-4" />
+                </div>
+                <span className="text-xs font-black">Barbier</span>
+                <span className="text-[9px] text-neutral-400 group-hover:text-violet-200">Staff</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => handleQuickDemoLogin("client@gmail.com", "123456")}
+                className="flex flex-col items-center justify-center p-2 rounded-xl bg-neutral-900/90 hover:bg-violet-600/25 border border-neutral-700/60 hover:border-violet-500/60 text-white transition-all active:scale-95 disabled:opacity-50 cursor-pointer group"
+              >
+                <div className="h-7 w-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                  <User className="h-4 w-4" />
+                </div>
+                <span className="text-xs font-black">Client</span>
+                <span className="text-[9px] text-neutral-400 group-hover:text-violet-200">RDV & Shop</span>
+              </button>
+            </div>
           </div>
           
           <form onSubmit={handleSubmit} className="space-y-4">
