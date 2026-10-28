@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { 
   Tag, 
   Sparkles, 
@@ -12,12 +11,10 @@ import {
   MapPin, 
   Store, 
   ArrowRight, 
-  Percent, 
-  Gift, 
-  Scissors,
   CheckCircle2,
   ChevronRight
 } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 
 interface Promotion {
   id: string;
@@ -38,18 +35,9 @@ interface Promotion {
   };
 }
 
-const CATEGORY_CHIPS = [
-  { key: "all", label: "Toutes les offres", icon: Sparkles },
-  { key: "mariage", label: "Pack Marié 💍", query: "mari" },
-  { key: "etudiant", label: "Étudiants 🎓", query: "étudiant" },
-  { key: "flash", label: "Flash & Weekend ⚡", query: "flash" },
-];
-
 export default function ClientPromotionsPage() {
-  const router = useRouter();
   const [promotions, setPromotions] = React.useState<Promotion[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [filter, setFilter] = React.useState("all");
 
   const todayStr = React.useMemo(() => {
     const d = new Date();
@@ -73,19 +61,6 @@ export default function ClientPromotionsPage() {
     }
     loadPromotions();
   }, []);
-
-  // Filter promotions
-  const filteredPromotions = React.useMemo(() => {
-    if (filter === "all") return promotions;
-    const cat = CATEGORY_CHIPS.find((c) => c.key === filter);
-    if (!cat?.query) return promotions;
-    const q = cat.query.toLowerCase();
-    return promotions.filter((p) => {
-      const matchTitle = (p.title || "").toLowerCase().includes(q);
-      const matchDesc = (p.description || "").toLowerCase().includes(q);
-      return matchTitle || matchDesc;
-    });
-  }, [filter, promotions]);
 
   const getDaysRemaining = (endDateStr: string) => {
     try {
@@ -125,7 +100,7 @@ export default function ClientPromotionsPage() {
             Offres Exclusives BarberPro ✂️
           </h1>
           <p className="mt-1 text-sm text-violet-100/90 leading-relaxed max-w-sm">
-            Réservez les meilleures prestations avec réduction immédiate chez nos barbiers partenaires.
+            Réservez les meilleures prestations avec réduction immédiate dans notre salon.
           </p>
 
           {/* Quick Stats banner */}
@@ -145,63 +120,24 @@ export default function ClientPromotionsPage() {
       </div>
 
       <div className="max-w-lg mx-auto px-4 -mt-4 relative z-20">
-        {/* ── CATEGORY CHIPS ── */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-          {CATEGORY_CHIPS.map((cat) => {
-            const Icon = cat.icon;
-            const active = filter === cat.key;
-            return (
-              <button
-                key={cat.key}
-                onClick={() => setFilter(cat.key)}
-                className={`whitespace-nowrap flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all shadow-sm active:scale-95 ${
-                  active
-                    ? "bg-gray-900 text-white shadow-gray-900/10"
-                    : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-200/80"
-                }`}
-              >
-                {Icon && <Icon className="h-3.5 w-3.5" />}
-                {cat.label}
-              </button>
-            );
-          })}
-        </div>
-
         {/* ── PROMOTIONS LIST ── */}
-        <div className="mt-4 space-y-4">
+        <div className="space-y-4">
           {loading ? (
-            // Skeleton Loader
-            <div className="space-y-4">
-              {[1, 2].map((i) => (
-                <div key={i} className="animate-pulse bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-4">
-                  <div className="flex justify-between items-start">
-                    <div className="h-6 w-32 bg-gray-200 rounded-lg" />
-                    <div className="h-8 w-16 bg-gray-200 rounded-xl" />
-                  </div>
-                  <div className="h-4 w-4/5 bg-gray-200 rounded" />
-                  <div className="h-4 w-2/3 bg-gray-200 rounded" />
-                  <div className="h-11 w-full bg-gray-200 rounded-2xl" />
-                </div>
-              ))}
+            <div className="bg-white dark:bg-neutral-900 rounded-3xl p-8 border border-gray-100 dark:border-neutral-800 shadow-sm">
+              <Spinner size="lg" label="Chargement des offres en cours..." />
             </div>
-          ) : filteredPromotions.length === 0 ? (
+          ) : promotions.length === 0 ? (
             <div className="bg-white rounded-3xl p-8 text-center border border-gray-100 shadow-sm">
               <div className="h-14 w-14 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center mx-auto mb-3">
                 <Tag className="h-7 w-7" />
               </div>
-              <h3 className="font-bold text-gray-900 text-base">Aucune offre dans cette catégorie</h3>
+              <h3 className="font-bold text-gray-900 text-base">Aucune offre disponible actuellement</h3>
               <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
-                Consultez toutes les offres disponibles ou revenez très bientôt pour de nouveaux bons plans.
+                Revenez très bientôt pour découvrir de nouveaux bons plans et réductions exclusives.
               </p>
-              <button
-                onClick={() => setFilter("all")}
-                className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 text-white text-xs font-bold active:scale-95 transition-transform"
-              >
-                Voir toutes les offres ({promotions.length})
-              </button>
             </div>
           ) : (
-            filteredPromotions.map((promo) => {
+            promotions.map((promo) => {
               const daysRemaining = getDaysRemaining(promo.endDate);
               const isUrgent = daysRemaining !== null && daysRemaining <= 3 && daysRemaining >= 0;
               const isEnded = daysRemaining !== null && daysRemaining < 0;

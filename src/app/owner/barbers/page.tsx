@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Users, Check, X, Plus, UserCheck, UserX, Copy, CheckCircle2 } from "lucide-react";
+import { Users, Check, X, Plus, UserCheck, UserX, Copy, CheckCircle2, History, Calendar, Scissors } from "lucide-react";
+import { formatTime, formatDate, getStatusColor, getStatusLabel, formatPrice } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -15,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
+import { Spinner } from "@/components/ui/spinner";
 
 interface UserInfo {
   id: string;
@@ -38,7 +40,12 @@ interface Appointment {
   id: string;
   barberId: string;
   status: string;
-  service: { price: number };
+  date: string;
+  startTime: string;
+  endTime: string;
+  notes?: string | null;
+  service?: { name: string; price: number; duration: number };
+  client?: { id: string; name: string; email: string };
 }
 
 interface Shop {
@@ -72,6 +79,8 @@ export default function OwnerBarbersPage() {
   const [showSuccessModal, setShowSuccessModal] = React.useState(false);
   const [copiedEmail, setCopiedEmail] = React.useState(false);
   const [copiedPassword, setCopiedPassword] = React.useState(false);
+  const [historyBarber, setHistoryBarber] = React.useState<Barber | null>(null);
+  const [historyStatusFilter, setHistoryStatusFilter] = React.useState<string>("ALL");
 
   const handleCopy = (text: string, type: "email" | "password") => {
     navigator.clipboard.writeText(text);
@@ -85,12 +94,7 @@ export default function OwnerBarbersPage() {
     toast("Copié dans le presse-papiers !", "success");
   };
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("fr-FR", {
-      style: "currency",
-      currency: "EUR",
-    }).format(price);
-  };
+// formatPrice imported from @/lib/utils
 
   async function loadData() {
     try {
@@ -250,7 +254,7 @@ export default function OwnerBarbersPage() {
   }
 
   if (loading) {
-    return <div className="text-center text-neutral-500 py-20">Chargement...</div>;
+    return <Spinner fullPage label="Chargement des barbiers..." />;
   }
 
   if (error) {
@@ -374,7 +378,18 @@ export default function OwnerBarbersPage() {
                 </div>
               </div>
 
-              <div className="mt-auto p-4 border-t border-neutral-100 dark:border-neutral-800/50 bg-neutral-50/50 dark:bg-neutral-900/50">
+              <div className="mt-auto p-4 border-t border-neutral-100 dark:border-neutral-800/50 bg-neutral-50/50 dark:bg-neutral-900/50 space-y-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setHistoryBarber(barber);
+                    setHistoryStatusFilter("ALL");
+                  }}
+                  className="w-full gap-2 rounded-xl border-neutral-200 dark:border-neutral-700 hover:bg-violet-50 hover:text-violet-600 dark:hover:bg-violet-900/20 text-xs font-semibold py-2.5"
+                >
+                  <History className="h-4 w-4 text-violet-500" />
+                  Historique des rendez-vous
+                </Button>
                 {!barber.isApproved ? (
                   <Button
                     onClick={() => handleApprove(barber.id)}
@@ -562,6 +577,125 @@ export default function OwnerBarbersPage() {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Modal Historique des RDV par coiffeur */}
+      <Modal
+        isOpen={!!historyBarber}
+        onClose={() => setHistoryBarber(null)}
+        title={historyBarber ? `Historique des RDV : ${historyBarber.user.name}` : "Historique"}
+      >
+        {historyBarber && (() => {
+          const barberAppts = appointments.filter(a => a.barberId === historyBarber.id);
+          const filteredAppts = historyStatusFilter === "ALL"
+            ? barberAppts
+            : barberAppts.filter(a => a.status === historyStatusFilter);
+
+          const completedCount = barberAppts.filter(a => a.status === "COMPLETED").length;
+          const confirmedCount = barberAppts.filter(a => a.status === "CONFIRMED").length;
+          const pendingCount = barberAppts.filter(a => a.status === "PENDING").length;
+          const cancelledCount = barberAppts.filter(a => a.status === "CANCELLED").length;
+
+          return (
+            <div className="space-y-5 pt-2">
+              {/* Stat summary */}
+              <div className="grid grid-cols-4 gap-2 text-center">
+                <div className="p-2.5 rounded-2xl bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-100 dark:border-neutral-800">
+                  <span className="block text-lg font-black text-neutral-900 dark:text-white">{barberAppts.length}</span>
+                  <span className="text-[10px] uppercase font-bold text-neutral-400">Total</span>
+                </div>
+                <div className="p-2.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-800/40">
+                  <span className="block text-lg font-black text-emerald-600 dark:text-emerald-400">{completedCount}</span>
+                  <span className="text-[10px] uppercase font-bold text-emerald-600/70 dark:text-emerald-400/70">Terminés</span>
+                </div>
+                <div className="p-2.5 rounded-2xl bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-800/40">
+                  <span className="block text-lg font-black text-blue-600 dark:text-blue-400">{confirmedCount}</span>
+                  <span className="text-[10px] uppercase font-bold text-blue-600/70 dark:text-blue-400/70">Confirmés</span>
+                </div>
+                <div className="p-2.5 rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-800/40">
+                  <span className="block text-lg font-black text-rose-600 dark:text-rose-400">{cancelledCount}</span>
+                  <span className="text-[10px] uppercase font-bold text-rose-600/70 dark:text-rose-400/70">Annulés</span>
+                </div>
+              </div>
+
+              {/* Status Filter buttons */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 hide-scrollbar">
+                {[
+                  { key: "ALL", label: `Tous (${barberAppts.length})` },
+                  { key: "CONFIRMED", label: `Confirmés (${confirmedCount})` },
+                  { key: "COMPLETED", label: `Terminés (${completedCount})` },
+                  { key: "PENDING", label: `En attente (${pendingCount})` },
+                  { key: "CANCELLED", label: `Annulés (${cancelledCount})` },
+                ].map(chip => (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    onClick={() => setHistoryStatusFilter(chip.key)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+                      historyStatusFilter === chip.key
+                        ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 shadow-sm"
+                        : "bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200"
+                    }`}
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Appointments List */}
+              <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+                {filteredAppts.length === 0 ? (
+                  <div className="text-center py-10 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800">
+                    <History className="h-8 w-8 text-neutral-400 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">Aucun rendez-vous trouvé</p>
+                    <p className="text-xs text-neutral-400 mt-0.5">Aucun rendez-vous dans ce statut.</p>
+                  </div>
+                ) : (
+                  filteredAppts.map(appt => (
+                    <div
+                      key={appt.id}
+                      className="p-3.5 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-sm space-y-2"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <Badge className={`px-2.5 py-0.5 text-[11px] font-bold ${getStatusColor(appt.status)}`}>
+                          {getStatusLabel(appt.status)}
+                        </Badge>
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-neutral-500">
+                          <Calendar className="h-3.5 w-3.5 text-violet-500" />
+                          {formatDate(appt.date)}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-neutral-100 dark:border-neutral-800/60">
+                        <div>
+                          <span className="text-neutral-400 text-[10px] uppercase font-bold block">Client</span>
+                          <span className="font-bold text-neutral-900 dark:text-white truncate block">{appt.client?.name || "Client"}</span>
+                          <span className="text-[11px] text-neutral-500 truncate block">{appt.client?.email}</span>
+                        </div>
+                        <div>
+                          <span className="text-neutral-400 text-[10px] uppercase font-bold block">Prestation</span>
+                          <span className="font-bold text-neutral-900 dark:text-white truncate block flex items-center gap-1">
+                            <Scissors className="h-3 w-3 text-violet-500 shrink-0" />
+                            {appt.service?.name || "Prestation"}
+                          </span>
+                          <span className="text-[11px] font-bold text-violet-600 dark:text-violet-400 block">
+                            {formatPrice(appt.service?.price || 0)} • {formatTime(appt.startTime)} - {formatTime(appt.endTime)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {appt.notes && (
+                        <div className="text-xs bg-neutral-50 dark:bg-neutral-800/50 p-2 rounded-xl text-neutral-600 dark:text-neutral-400 italic">
+                          « {appt.notes} »
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </Modal>
     </div>
   );

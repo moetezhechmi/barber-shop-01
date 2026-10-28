@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -55,9 +56,7 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-32 animate-pulse">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-neutral-200 border-t-violet-600 dark:border-neutral-800 dark:border-t-violet-400" />
-      </div>
+      <Spinner fullPage label="Chargement de votre profil..." />
     );
   }
 

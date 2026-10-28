@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
+import { Spinner } from "@/components/ui/spinner";
 
 interface GalleryImage {
   id: string;
@@ -163,9 +164,7 @@ export default function BarberGalleryPage() {
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-neutral-900 dark:border-neutral-50" />
-      </div>
+      <Spinner fullPage label="Chargement de votre galerie photo..." />
     );
   }
 

@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
+import { Spinner } from "@/components/ui/spinner";
 
 interface ShopData {
   id: string;
@@ -292,10 +293,7 @@ export default function OwnerPromotionsPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-violet-600 border-t-transparent" />
-        <p className="text-sm font-semibold text-neutral-500">Chargement de vos promotions...</p>
-      </div>
+      <Spinner fullPage label="Chargement de vos promotions..." />
     );
   }
 

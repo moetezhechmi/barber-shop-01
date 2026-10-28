@@ -132,7 +132,7 @@ export default function RegisterPage() {
             <p className="text-sm text-neutral-400">
               {role === "CLIENT" && "Réservez vos prestations en un clic"}
               {role === "OWNER" && "Gérez votre salon et votre équipe"}
-              {role === "BARBER" && "Rejoignez un salon et gérez vos rendez-vous"}
+              {role === "BARBER" && "Accédez à votre planning et gérez vos rendez-vous"}
             </p>
           </div>
           

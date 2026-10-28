@@ -4,10 +4,11 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ToastProvider, useToast } from "@/components/ui/toast";
-import { MapPin, Calendar, User, LogOut, X, Bell, Scissors, Tag } from "lucide-react";
+import { MapPin, Calendar, User, LogOut, X, Bell, Scissors, Tag, ShoppingBag } from "lucide-react";
 
 const bottomNav = [
   { href: "/client/search",       label: "Accueil",      icon: MapPin },
+  { href: "/client/products",     label: "Boutique",     icon: ShoppingBag },
   { href: "/client/promotions",   label: "Offres",       icon: Tag, isPromo: true },
   { href: "/client/appointments", label: "Rendez-vous",  icon: Calendar },
   { href: "/client/profile",      label: "Profil",       icon: User },
@@ -27,6 +28,7 @@ function chime() {
 
 /* ── notification bell ── */
 function NotifBell() {
+  const router = useRouter();
   const { toast } = useToast();
   const [notifs, setNotifs] = React.useState<any[]>([]);
   const [open, setOpen] = React.useState(false);
@@ -71,7 +73,19 @@ function NotifBell() {
             {notifs.length === 0
               ? <div className="py-12 text-center"><Bell className="h-8 w-8 text-gray-200 mx-auto mb-2" /><p className="text-sm text-gray-400">Aucune notification</p></div>
               : notifs.map(n => (
-                  <div key={n.id} onClick={() => !n.isRead && mark(n.id)} className={`flex gap-3 px-5 py-3.5 cursor-pointer border-b border-gray-50 last:border-0 transition-colors ${n.isRead ? "bg-white" : "bg-violet-50/50"}`}>
+                  <div
+                    key={n.id}
+                    onClick={() => {
+                      if (!n.isRead) mark(n.id);
+                      setOpen(false);
+                      if (n.type === "PROMOTION" || (n.message && n.message.toLowerCase().includes("offre"))) {
+                        router.push("/client/promotions");
+                      } else {
+                        router.push("/client/appointments");
+                      }
+                    }}
+                    className={`flex gap-3 px-5 py-3.5 cursor-pointer border-b border-gray-50 last:border-0 transition-colors hover:bg-neutral-50 ${n.isRead ? "bg-white" : "bg-violet-50/50"}`}
+                  >
                     <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 ${n.type === "PROMOTION" ? "bg-red-100 text-red-500" : "bg-violet-100 text-violet-600"}`}><Bell className="h-4 w-4" /></div>
                     <div className="flex-1 min-w-0">
                       <p className={`text-sm leading-snug ${n.isRead ? "text-gray-500" : "font-semibold text-gray-900"}`}>{n.message}</p>

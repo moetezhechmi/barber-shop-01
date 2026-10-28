@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
+import { Spinner } from "@/components/ui/spinner";
 import {
   getStatusColor,
   getStatusLabel,
@@ -157,9 +158,7 @@ export default function BarberAppointmentsPage() {
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-neutral-900 dark:border-neutral-50" />
-      </div>
+      <Spinner fullPage label="Chargement de vos rendez-vous..." />
     );
   }
 
@@ -226,7 +225,7 @@ export default function BarberAppointmentsPage() {
                       <p>
                         {appt.service.name} &middot;{" "}
                         {appt.service.duration} min &middot;{" "}
-                        {appt.service.price.toFixed(2)} &euro;
+                        {appt.service.price.toFixed(2)} DT
                       </p>
                       <p>
                         {formatDate(appt.date)} &middot;{" "}

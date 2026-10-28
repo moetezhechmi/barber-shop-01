@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { Modal } from "@/components/ui/modal";
 import { Badge } from "@/components/ui/badge";
+import { Spinner } from "@/components/ui/spinner";
 import { formatTime, formatDate, getStatusColor, getStatusLabel, formatPrice } from "@/lib/utils";
 
 // Types
@@ -204,9 +205,7 @@ export default function OwnerAppointmentsPage() {
 
   if (loading) {
     return (
-      <div className="flex h-[60vh] items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin text-violet-600" />
-      </div>
+      <Spinner fullPage label="Chargement du planning des rendez-vous..." />
     );
   }
 

@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
+import { Spinner } from "@/components/ui/spinner";
 import { formatTime } from "@/lib/utils";
 
 interface Client {
@@ -218,9 +219,7 @@ export default function BarberSchedulePage() {
 
   if (loading && !barber) {
     return (
-      <div className="flex h-[60vh] items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin text-violet-600" />
-      </div>
+      <Spinner fullPage label="Chargement de votre planning..." />
     );
   }
 

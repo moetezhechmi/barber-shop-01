@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
+import { Spinner } from "@/components/ui/spinner";
 import { DAYS_OF_WEEK, cn } from "@/lib/utils";
 
 interface ShopData {
@@ -743,7 +744,7 @@ export default function OwnerShopPage() {
   }
 
   if (loading) {
-    return <div className="text-center text-neutral-500 py-20">Chargement...</div>;
+    return <Spinner fullPage label="Chargement de votre salon..." />;
   }
 
   if (error) {
@@ -2310,12 +2311,12 @@ export default function OwnerShopPage() {
             {/* Live calculation example with crossed-out price */}
             <div className="flex items-center justify-between bg-white dark:bg-neutral-950 rounded-xl p-3 border border-neutral-100 dark:border-neutral-800 text-xs">
               <span className="font-medium text-neutral-700 dark:text-neutral-300">
-                Effet sur les tarifs (ex: Prestation 25.00 TND) :
+                Effet sur les tarifs (ex: Prestation 25.00 DT) :
               </span>
               <div className="flex items-center gap-1.5">
-                <span className="text-neutral-400 line-through">25.00 TND</span>
+                <span className="text-neutral-400 line-through">25.00 DT</span>
                 <span className="font-black text-red-600 text-sm">
-                  {(25 * (1 - (newPromo.discount || 20) / 100)).toFixed(2)} TND
+                  {(25 * (1 - (newPromo.discount || 20) / 100)).toFixed(2)} DT
                 </span>
                 <span className="text-[10px] font-black bg-red-100 text-red-600 px-1.5 py-0.5 rounded-md">
                   -{newPromo.discount || 20}%

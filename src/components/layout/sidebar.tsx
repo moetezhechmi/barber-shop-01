@@ -14,6 +14,7 @@ import {
   Search,
   Image,
   Tag,
+  ShoppingBag,
   type LucideIcon,
 } from "lucide-react";
 
@@ -29,6 +30,7 @@ export const navMap: Record<string, NavItem[]> = {
     { label: "Mon Salon", href: "/owner/shop", icon: Store },
     { label: "Offres", href: "/owner/promotions", icon: Tag },
     { label: "Barbiers", href: "/owner/barbers", icon: Users },
+    { label: "Boutique", href: "/owner/products", icon: ShoppingBag },
     { label: "Services", href: "/owner/services", icon: Scissors },
     { label: "Rendez-vous", href: "/owner/appointments", icon: Calendar },
   ],
@@ -48,6 +50,7 @@ export const navMap: Record<string, NavItem[]> = {
   ],
   client: [
     { label: "Rechercher", href: "/client/search", icon: Search },
+    { label: "Boutique", href: "/client/products", icon: ShoppingBag },
     { label: "Offres", href: "/client/promotions", icon: Tag },
     {
       label: "Mes Rendez-vous",

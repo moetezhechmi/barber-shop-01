@@ -4,6 +4,7 @@ import * as React from "react";
 import { Calendar, Clock, User, Scissors, Star, X, CheckCircle, Loader2, MapPin } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
+import { Spinner } from "@/components/ui/spinner";
 import { formatDate, formatTime, getStatusLabel } from "@/lib/utils";
 
 interface Appointment {
@@ -114,9 +115,7 @@ export default function AppointmentsPage() {
   };
 
   if (loading) return (
-    <div className="flex min-h-[50vh] items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
-    </div>
+    <Spinner fullPage label="Chargement de vos rendez-vous..." />
   );
 
   return (
@@ -194,7 +193,7 @@ export default function AppointmentsPage() {
                       {apt.barber.user.name}
                     </p>
                   </div>
-                  <p className="font-black text-sm text-violet-600 shrink-0">{apt.service.price} TND</p>
+                  <p className="font-black text-sm text-violet-600 shrink-0">{apt.service.price.toFixed(2)} DT</p>
                 </div>
 
                 {/* Date + Time */}

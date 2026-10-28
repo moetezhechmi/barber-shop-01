@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Calendar, Users, Scissors, Euro, Clock, User } from "lucide-react";
+import { Calendar, Users, Scissors, Coins, Clock, User } from "lucide-react";
 import { formatDate, formatTime, getStatusColor, getStatusLabel, formatPrice } from "@/lib/utils";
 
 interface Shop {
@@ -143,7 +143,7 @@ export default function OwnerDashboardPage() {
     {
       label: "Revenu",
       value: formatPrice(revenue),
-      icon: Euro,
+      icon: Coins,
       gradient: "from-amber-400 to-orange-500",
     },
   ];

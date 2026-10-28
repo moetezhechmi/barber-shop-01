@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
+import { Spinner } from "@/components/ui/spinner";
 import { formatPrice } from "@/lib/utils";
 
 interface Service {
@@ -188,7 +189,7 @@ export default function OwnerServicesPage() {
   }
 
   if (loading) {
-    return <div className="text-center text-neutral-500 py-20">Chargement...</div>;
+    return <Spinner fullPage label="Chargement des prestations..." />;
   }
 
   if (error) {
@@ -339,7 +340,7 @@ export default function OwnerServicesPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                Prix (€)
+                Prix (DT)
               </label>
               <Input
                 type="number"
