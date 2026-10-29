@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 // SSE for real-time appointment updates
 
 import * as React from "react";
@@ -15,6 +15,7 @@ import {
 } from "@/lib/utils";
 import { CheckCircle, XCircle, CheckCheck } from "lucide-react";
 import { useSSEStore } from "@/store/sse.store";
+import { useBarberStore } from "@/store/barber.store";
 
 interface Client {
   id: string;
@@ -59,62 +60,24 @@ export default function BarberAppointmentsPage() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [activeTab, setActiveTab] = React.useState<TabKey>("ALL");
+  const { barber, fetchBarber } = useBarberStore();
   const [actionLoading, setActionLoading] = React.useState<string | null>(null);
   const { addListener } = useSSEStore();
 
+  React.useEffect(() => { fetchBarber(); }, [fetchBarber]);
+
   React.useEffect(() => {
+    if (!barber) return;
     let cancelled = false;
-    async function init() {
-      try {
-        const meRes = await fetch("/api/auth/me");
-        if (!meRes.ok) throw new Error("Non connecté");
-        const { user: me } = await meRes.json();
+    setLoading(true);
+    fetch(`/api/barbers/${barber.id}/appointments`)
+      .then(r => r.ok ? r.json() : Promise.reject(new Error("Erreur")))
+      .then(d => { if (!cancelled) setAppointments(d.appointments ?? []); })
+      .catch((err: Error) => { if (!cancelled) setError(err.message); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [barber]);
 
-        const barberRes = await fetch("/api/barbers");
-        if (!barberRes.ok) throw new Error("Erreur profil coiffeur");
-        const { barbers } = await barberRes.json();
-        let myBarber = barbers?.find(
-          (b: { userId: string }) => b.userId === me.id
-        );
-        
-        if (!myBarber && me.role === "BARBER") {
-          // Automatically create the barber profile if it doesn't exist yet
-          const createRes = await fetch("/api/barbers", { method: "POST" });
-          if (createRes.ok) {
-            const createData = await createRes.json();
-            myBarber = createData.barber;
-            
-            // Re-fetch the barbers list to ensure we have the correct populated object
-            const refetchRes = await fetch("/api/barbers");
-            if (refetchRes.ok) {
-              const refetchData = await refetchRes.json();
-              myBarber = refetchData.barbers?.find((b: { userId: string }) => b.userId === me.id);
-            }
-          }
-        }
-        
-        if (!myBarber) throw new Error("Aucun profil coiffeur");
-
-        const apptRes = await fetch(
-          `/api/barbers/${myBarber.id}/appointments`
-        );
-        if (!apptRes.ok) throw new Error("Erreur chargement rendez-vous");
-        const { appointments: appts } = await apptRes.json();
-        if (!cancelled) setAppointments(appts ?? []);
-      } catch (err) {
-        if (!cancelled)
-          setError(
-            err instanceof Error ? err.message : "Une erreur est survenue"
-          );
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    init();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // Real-time: update status instantly when changed from any source
   React.useEffect(() => {

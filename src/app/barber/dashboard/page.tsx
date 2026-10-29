@@ -1,8 +1,9 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import { CalendarCheck, Clock, Users, TrendingUp, Scissors } from "lucide-react";
 import { getStatusColor, getStatusLabel, formatTime } from "@/lib/utils";
+import { useBarberStore } from "@/store/barber.store";
 
 interface Client {
   id: string;
@@ -60,6 +61,7 @@ const STATUS_TABS = [
 type StatusTab = (typeof STATUS_TABS)[number]["key"];
 
 export default function BarberDashboardPage() {
+  const { barber, fetchBarber } = useBarberStore();
   const [appointments, setAppointments] = React.useState<Appointment[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -68,47 +70,19 @@ export default function BarberDashboardPage() {
   const today = getLocalDate();
   const weekStart = getMonday();
 
+  React.useEffect(() => { fetchBarber(); }, [fetchBarber]);
+
   React.useEffect(() => {
+    if (!barber) return;
     let cancelled = false;
-    async function init() {
-      try {
-        const meRes = await fetch("/api/auth/me");
-        if (!meRes.ok) throw new Error("Non connecté");
-        const { user: me } = await meRes.json();
-
-        const barberRes = await fetch("/api/barbers");
-        if (!barberRes.ok) throw new Error("Erreur profil coiffeur");
-        const { barbers } = await barberRes.json();
-        let myBarber = barbers?.find((b: { userId: string }) => b.userId === me.id);
-
-        if (!myBarber && me.role === "BARBER") {
-          const createRes = await fetch("/api/barbers", { method: "POST" });
-          if (createRes.ok) {
-            const createData = await createRes.json();
-            myBarber = createData.barber;
-            const refetchRes = await fetch("/api/barbers");
-            if (refetchRes.ok) {
-              const refetchData = await refetchRes.json();
-              myBarber = refetchData.barbers?.find((b: { userId: string }) => b.userId === me.id);
-            }
-          }
-        }
-
-        if (!myBarber) throw new Error("Aucun profil coiffeur trouvé");
-
-        const apptRes = await fetch(`/api/barbers/${myBarber.id}/appointments`);
-        if (!apptRes.ok) throw new Error("Erreur chargement rendez-vous");
-        const { appointments: appts } = await apptRes.json();
-        if (!cancelled) setAppointments(appts ?? []);
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Une erreur est survenue");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    init();
+    setLoading(true);
+    fetch(`/api/barbers/${barber.id}/appointments`)
+      .then(r => r.ok ? r.json() : Promise.reject(new Error("Erreur chargement")))
+      .then(data => { if (!cancelled) setAppointments(data.appointments ?? []); })
+      .catch((err: Error) => { if (!cancelled) setError(err.message); })
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [barber]);
 
   const todayAppts = appointments.filter((a) => a.date === today);
   const pendingCount = appointments.filter((a) => a.status === "PENDING").length;

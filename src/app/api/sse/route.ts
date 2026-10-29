@@ -1,4 +1,4 @@
-﻿import { NextRequest } from "next/server";
+import { NextRequest } from "next/server";
 import { getSession } from "@/lib/auth";
 
 /**
@@ -19,6 +19,10 @@ const clients = new Map<string, Set<SendFn>>();
 
 // Max connections per user (prevent abuse)
 const MAX_CONNECTIONS_PER_USER = 5;
+
+// IP-based rate limit
+const ipConnections = new Map<string, number>();
+const MAX_IP_CONNECTIONS = 10;
 
 function register(userId: string, send: SendFn): boolean {
   if (!clients.has(userId)) clients.set(userId, new Set());
@@ -61,6 +65,15 @@ export async function GET(req: NextRequest) {
   }
 
   const userId = user.id;
+
+  // IP rate limit check
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const ipCount = ipConnections.get(ip) ?? 0;
+  if (ipCount >= MAX_IP_CONNECTIONS) {
+    return new Response("Too Many Requests", { status: 429 });
+  }
+  ipConnections.set(ip, ipCount + 1);
+
   let send: SendFn;
   let heartbeat: ReturnType<typeof setInterval>;
 
@@ -94,6 +107,9 @@ export async function GET(req: NextRequest) {
       req.signal.addEventListener("abort", () => {
         clearInterval(heartbeat);
         unregister(userId, send);
+        const current = ipConnections.get(ip) ?? 1;
+        if (current <= 1) ipConnections.delete(ip);
+        else ipConnections.set(ip, current - 1);
         try { controller.close(); } catch { /* already closed */ }
       });
     },

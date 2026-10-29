@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import Link from "next/link";
@@ -8,6 +8,7 @@ import { LogOut, User, Scissors, Bell, CheckCheck, BellOff } from "lucide-react"
 import { navMap, type NavItem } from "@/components/layout/sidebar";
 import { useAuthStore } from "@/store/auth.store";
 import { useNotifStore } from "@/store/notif.store";
+import { useSSEStore } from "@/store/sse.store";
 
 function formatRelativeTime(dateStr: string) {
   try {
@@ -33,6 +34,7 @@ export function Navbar() {
 
   // Notif store
   const { notifications, unreadCount, markRead, markAllRead, startPolling } = useNotifStore();
+  const { connected: sseConnected } = useSSEStore();
 
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [notificationsOpen, setNotificationsOpen] = React.useState(false);
@@ -80,8 +82,11 @@ export function Navbar() {
 
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 shadow-sm">
+          <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 shadow-sm">
             <Scissors className="h-4 w-4 text-white" strokeWidth={2} />
+            {user && (
+              <span className={`absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border border-white transition-colors ${sseConnected ? "bg-emerald-400" : "bg-neutral-300"}`} />
+            )}
           </div>
           <span className="text-base font-bold text-neutral-900 tracking-tight">BarberPro</span>
         </Link>

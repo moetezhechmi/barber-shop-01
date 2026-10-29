@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { Spinner } from "@/components/ui/spinner";
 import { formatTime } from "@/lib/utils";
+import { useSSEStore } from "@/store/sse.store";
 
 interface Client {
   id: string;
@@ -81,6 +82,7 @@ export default function BarberSchedulePage() {
   const [blockStartTime, setBlockStartTime] = React.useState("12:00");
   const [blockEndTime, setBlockEndTime] = React.useState("13:00");
   const [savingBlock, setSavingBlock] = React.useState(false);
+  const { addListener } = useSSEStore();
   
   const selectedDateStr = getLocalDateStr(selectedDate);
   const currentWeekStart = new Date();
@@ -104,7 +106,7 @@ export default function BarberSchedulePage() {
       const barberRes = await fetch("/api/barbers");
       if (!barberRes.ok) throw new Error("Erreur profil");
       const { barbers } = await barberRes.json();
-      let myBarber = barbers?.find((b: any) => b.userId === me.id);
+      let myBarber = barbers?.find((b: { userId: string }) => b.userId === me.id);
       
       if (!myBarber && me.role === "BARBER") {
         // Automatically create the barber profile if it doesn't exist yet
@@ -117,7 +119,7 @@ export default function BarberSchedulePage() {
           const refetchRes = await fetch("/api/barbers");
           if (refetchRes.ok) {
             const refetchData = await refetchRes.json();
-            myBarber = refetchData.barbers?.find((b: any) => b.userId === me.id);
+            myBarber = refetchData.barbers?.find((b: { userId: string }) => b.userId === me.id);
           }
         }
       }
@@ -134,7 +136,6 @@ export default function BarberSchedulePage() {
       setBlocks(data.blocks || []);
 
     } catch (err) {
-      console.error(err);
       toast(err instanceof Error ? err.message : "Erreur de chargement", "error");
     } finally {
       setLoading(false);
@@ -144,6 +145,21 @@ export default function BarberSchedulePage() {
   React.useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Real-time: update appointment status and refresh on slot changes
+  React.useEffect(() => {
+    const remove = addListener((event) => {
+      if (event.type === "appointment_updated") {
+        setAppointments((prev) =>
+          prev.map((a) => a.id === event.appointmentId ? { ...a, status: event.status } : a)
+        );
+      }
+      if (event.type === "slots_updated") {
+        fetchData();
+      }
+    });
+    return remove;
+  }, [addListener, fetchData]);
 
   const handleAddBlock = async () => {
     if (!barber) return;

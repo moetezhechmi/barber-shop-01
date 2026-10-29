@@ -11,6 +11,7 @@ import { Modal } from "@/components/ui/modal";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { formatTime, formatDate, getStatusColor, getStatusLabel, formatPrice } from "@/lib/utils";
+import { useSSEStore } from "@/store/sse.store";
 
 // Types
 interface Client {
@@ -87,6 +88,7 @@ export default function OwnerAppointmentsPage() {
   const [selectedBarberId, setSelectedBarberId] = React.useState<string>("ALL");
   
   const [viewingAppointment, setViewingAppointment] = React.useState<Appointment | null>(null);
+  const { addListener } = useSSEStore();
 
   const selectedDateStr = getLocalDateStr(selectedDate);
   const currentWeekStart = new Date();
@@ -118,6 +120,21 @@ export default function OwnerAppointmentsPage() {
   React.useEffect(() => {
     loadAppointments();
   }, [loadAppointments]);
+
+  // Real-time: update status instantly on SSE event
+  React.useEffect(() => {
+    const remove = addListener((event) => {
+      if (event.type === "appointment_updated") {
+        setAppointments((prev) =>
+          prev.map((a) => a.id === event.appointmentId ? { ...a, status: event.status } : a)
+        );
+        setViewingAppointment((prev) =>
+          prev?.id === event.appointmentId ? { ...prev, status: event.status } : prev
+        );
+      }
+    });
+    return remove;
+  }, [addListener]);
 
   const handleUpdateStatus = async (appointmentId: string, status: string) => {
     try {
