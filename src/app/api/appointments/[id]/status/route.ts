@@ -38,8 +38,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         return NextResponse.json({ error: "Only the barber or owner can confirm appointments" }, { status: 403 });
       }
     } else if (status === "COMPLETED") {
-      if (appointment.barber.userId !== user.id) {
-        return NextResponse.json({ error: "Only the barber can mark as completed" }, { status: 403 });
+      const isBarber = appointment.barber.userId === user.id;
+      const isOwner = user.role === "OWNER" && appointment.barber.shop?.ownerId === user.id;
+      if (!isBarber && !isOwner) {
+        return NextResponse.json({ error: "Only the barber or owner can mark as completed" }, { status: 403 });
       }
     } else if (status === "CANCELLED") {
       const isClient = appointment.clientId === user.id;
@@ -93,6 +95,64 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           type: "APPOINTMENT_COMPLETED",
         },
       });
+
+      // ── Loyalty card: add a stamp ──
+      try {
+        const STAMPS_GOAL = 9; // 9 stamps → free on the 10th
+        console.log("[LOYALTY] Starting stamp for clientId:", appointment.clientId);
+        const existing = await prisma.loyaltyCard.findUnique({
+          where: { clientId: appointment.clientId },
+        });
+        console.log("[LOYALTY] Existing card:", existing);
+
+        const currentStamps = existing?.stamps ?? 0;
+        const newStamps = currentStamps + 1;
+        const cardCompleted = newStamps >= STAMPS_GOAL;
+
+        if (existing) {
+          await prisma.loyaltyCard.update({
+            where: { clientId: appointment.clientId },
+            data: {
+              stamps: cardCompleted ? 0 : newStamps,
+              totalEarned: { increment: 1 },
+              ...(cardCompleted ? { cardsCompleted: { increment: 1 } } : {}),
+            },
+          });
+          console.log("[LOYALTY] Updated card → stamps:", cardCompleted ? 0 : newStamps);
+        } else {
+          await prisma.loyaltyCard.create({
+            data: {
+              clientId: appointment.clientId,
+              stamps: cardCompleted ? 0 : newStamps,
+              totalEarned: 1,
+              cardsCompleted: cardCompleted ? 1 : 0,
+            },
+          });
+          console.log("[LOYALTY] Created card → stamps:", cardCompleted ? 0 : newStamps);
+        }
+
+        // Notify client of their new stamp (and reward if card completed)
+        if (cardCompleted) {
+          await prisma.notification.create({
+            data: {
+              userId: appointment.clientId,
+              message: `🎉 Félicitations ! Vous avez complété votre carte de fidélité — votre prochain rendez-vous est offert ! Mentionnez-le lors de votre prochaine réservation.`,
+              type: "LOYALTY_REWARD",
+            },
+          });
+        } else {
+          await prisma.notification.create({
+            data: {
+              userId: appointment.clientId,
+              message: `✂️ Tampon ajouté à votre carte de fidélité ! ${newStamps}/${STAMPS_GOAL} — encore ${STAMPS_GOAL - newStamps} rendez-vous avant une coupe offerte.`,
+              type: "LOYALTY_STAMP",
+            },
+          });
+        }
+      } catch (loyaltyError) {
+        // Log but don't fail the whole request
+        console.error("[LOYALTY] ERROR:", loyaltyError);
+      }
     }
 
     return NextResponse.json({ appointment: updated });

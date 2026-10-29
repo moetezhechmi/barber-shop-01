@@ -3,35 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Scissors, Eye, EyeOff, Sparkles, ArrowRight, ShieldCheck, User, Store } from "lucide-react";
-import { signIn } from "next-auth/react";
-
-const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg viewBox="0 0 24 24" width="20" height="20" {...props}>
-    <path
-      fill="#4285F4"
-      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-    />
-    <path
-      fill="#34A853"
-      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-    />
-    <path
-      fill="#FBBC05"
-      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-    />
-    <path
-      fill="#EA4335"
-      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-    />
-  </svg>
-);
-
-const FacebookIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg viewBox="0 0 24 24" width="20" height="20" fill="#1877F2" {...props}>
-    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-  </svg>
-);
+import { Eye, EyeOff, ArrowRight, ShieldCheck, User, Scissors, Zap } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -54,45 +26,26 @@ export default function LoginPage() {
         const res = await fetch("/api/auth/me");
         if (res.ok && active) {
           const { user } = await res.json();
-          if (user) {
-            const target = roleRedirect[user.role] || "/client/search";
-            router.replace(target);
-          }
+          if (user) router.replace(roleRedirect[user.role] || "/client/search");
         }
-      } catch (err) {
-        console.error("Auth check failed:", err);
-      }
+      } catch { /* not logged in */ }
     }
     checkAuth();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [router]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const doLogin = async (loginEmail: string, loginPassword: string) => {
     setError(null);
-
-    if (!email.trim() || !password.trim()) {
-      setError("Veuillez remplir tous les champs");
-      return;
-    }
-
     setLoading(true);
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
       });
-
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Email ou mot de passe incorrect");
-      }
-
-      const target = roleRedirect[data.user?.role] || "/client/search";
-      router.push(target);
+      if (!res.ok) throw new Error(data.error || "Email ou mot de passe incorrect");
+      router.push(roleRedirect[data.user?.role] || "/client/search");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue");
     } finally {
@@ -100,238 +53,164 @@ export default function LoginPage() {
     }
   };
 
-  const handleQuickDemoLogin = async (demoEmail: string, demoPass: string) => {
-    setEmail(demoEmail);
-    setPassword(demoPass);
-    setError(null);
-    setLoading(true);
-
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: demoEmail, password: demoPass }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Identifiants de démo invalides");
-      }
-
-      const target = roleRedirect[data.user?.role] || "/client/search";
-      router.push(target);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur lors de la connexion démo");
-    } finally {
-      setLoading(false);
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !password.trim()) {
+      setError("Veuillez remplir tous les champs");
+      return;
     }
+    doLogin(email, password);
   };
 
-  const handleSocialLogin = async (provider: string) => {
-    if (provider === "Google") {
-      setLoading(true);
-      setError(null);
-      try {
-        await signIn("google", { callbackUrl: "/client/search" });
-      } catch (err) {
-        setError("Une erreur est survenue lors de l'authentification Google");
-      } finally {
-        setLoading(false);
-      }
-    }
+  const handleDemo = (demoEmail: string, demoPass: string) => {
+    setEmail(demoEmail);
+    setPassword(demoPass);
+    doLogin(demoEmail, demoPass);
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#070708] px-4 font-sans sm:px-6 lg:px-8 py-10">
-      {/* Background Glows */}
-      <div className="absolute top-0 -left-4 w-96 h-96 bg-violet-600 rounded-full mix-blend-multiply filter blur-[128px] opacity-30 animate-pulse" />
-      <div className="absolute bottom-0 -right-4 w-96 h-96 bg-indigo-600 rounded-full mix-blend-multiply filter blur-[128px] opacity-30 animate-pulse" />
-      
-      <div className="relative z-10 w-full max-w-md">
-        <div className="backdrop-blur-3xl bg-neutral-900/40 border border-neutral-800 rounded-[32px] p-8 sm:p-10 shadow-2xl">
-          
-          {/* Header */}
-          <div className="text-center mb-6">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-lg shadow-violet-500/20 border border-white/10 transform hover:scale-105 transition-transform duration-300">
-              <Scissors className="h-6 w-6 text-white" />
-            </div>
-            
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mb-2 flex items-center justify-center gap-2">
-              Bon retour <Sparkles className="h-4 w-4 text-violet-400" />
-            </h1>
-            
-            <p className="text-sm text-neutral-400">
-              Connectez-vous pour accéder à BarberPro
-            </p>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-violet-50 flex items-center justify-center px-4 py-12">
+      {/* Soft decorative blobs */}
+      <div className="pointer-events-none fixed top-[-80px] left-[-80px] h-[400px] w-[400px] rounded-full bg-violet-100 opacity-50 blur-[100px]" />
+      <div className="pointer-events-none fixed bottom-[-80px] right-[-80px] h-[400px] w-[400px] rounded-full bg-indigo-100 opacity-50 blur-[100px]" />
 
-          {/* Quick Demo Access Bar */}
-          <div className="mb-6 rounded-2xl bg-gradient-to-b from-neutral-800/80 to-neutral-900/80 p-3.5 border border-neutral-700/60 shadow-lg">
-            <div className="flex items-center justify-between mb-2.5">
-              <span className="text-[11px] font-black uppercase tracking-wider text-violet-300 flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-                Accès Rapide Démo ⚡
-              </span>
-              <span className="text-[10px] text-neutral-400 font-medium">1 clic</span>
+      <div className="relative w-full max-w-[420px]">
+
+        {/* Brand header — outside card */}
+        <div className="mb-8 text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 shadow-lg shadow-violet-200 mb-4">
+            <Scissors className="h-8 w-8 text-white" strokeWidth={1.75} />
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Bon retour 👋</h1>
+          <p className="mt-1 text-sm text-slate-500">Connectez-vous à votre compte BarberPro</p>
+        </div>
+
+        {/* Card */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8">
+
+          {/* Demo shortcuts */}
+          <div className="mb-6 rounded-xl bg-slate-50 border border-slate-200 p-3">
+            <div className="flex items-center gap-1.5 mb-2.5">
+              <Zap className="h-3.5 w-3.5 text-violet-500" />
+              <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Accès démo rapide</span>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                disabled={loading}
-                onClick={() => handleQuickDemoLogin("admin@gmail.com", "123456")}
-                className="flex flex-col items-center justify-center p-2 rounded-xl bg-neutral-900/90 hover:bg-violet-600/25 border border-neutral-700/60 hover:border-violet-500/60 text-white transition-all active:scale-95 disabled:opacity-50 cursor-pointer group"
-              >
-                <div className="h-7 w-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
-                  <ShieldCheck className="h-4 w-4" />
-                </div>
-                <span className="text-xs font-black">Admin</span>
-                <span className="text-[9px] text-neutral-400 group-hover:text-violet-200">Gérant</span>
-              </button>
-
-              <button
-                type="button"
-                disabled={loading}
-                onClick={() => handleQuickDemoLogin("chacha@gmail.com", "123456")}
-                className="flex flex-col items-center justify-center p-2 rounded-xl bg-neutral-900/90 hover:bg-violet-600/25 border border-neutral-700/60 hover:border-violet-500/60 text-white transition-all active:scale-95 disabled:opacity-50 cursor-pointer group"
-              >
-                <div className="h-7 w-7 rounded-lg bg-violet-500/20 text-violet-400 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
-                  <Scissors className="h-4 w-4" />
-                </div>
-                <span className="text-xs font-black">Barbier</span>
-                <span className="text-[9px] text-neutral-400 group-hover:text-violet-200">Staff</span>
-              </button>
-
-              <button
-                type="button"
-                disabled={loading}
-                onClick={() => handleQuickDemoLogin("client@gmail.com", "123456")}
-                className="flex flex-col items-center justify-center p-2 rounded-xl bg-neutral-900/90 hover:bg-violet-600/25 border border-neutral-700/60 hover:border-violet-500/60 text-white transition-all active:scale-95 disabled:opacity-50 cursor-pointer group"
-              >
-                <div className="h-7 w-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
-                  <User className="h-4 w-4" />
-                </div>
-                <span className="text-xs font-black">Client</span>
-                <span className="text-[9px] text-neutral-400 group-hover:text-violet-200">RDV & Shop</span>
-              </button>
+              {[
+                { label: "Gérant", sub: "Admin", icon: ShieldCheck, color: "amber", email: "admin@gmail.com" },
+                { label: "Barbier", sub: "Staff", icon: Scissors, color: "violet", email: "chacha@gmail.com" },
+                { label: "Client", sub: "RDV", icon: User, color: "emerald", email: "client@gmail.com" },
+              ].map(({ label, sub, icon: Icon, color, email: demoEmail }) => (
+                <button
+                  key={label}
+                  type="button"
+                  disabled={loading}
+                  onClick={() => handleDemo(demoEmail, "123456")}
+                  className={`group flex flex-col items-center gap-1 rounded-lg border bg-white p-2.5 text-center transition-all hover:shadow-sm active:scale-95 disabled:opacity-50
+                    ${color === "amber" ? "border-amber-100 hover:border-amber-200 hover:bg-amber-50" : ""}
+                    ${color === "violet" ? "border-violet-100 hover:border-violet-200 hover:bg-violet-50" : ""}
+                    ${color === "emerald" ? "border-emerald-100 hover:border-emerald-200 hover:bg-emerald-50" : ""}
+                  `}
+                >
+                  <div className={`flex h-7 w-7 items-center justify-center rounded-lg
+                    ${color === "amber" ? "bg-amber-100 text-amber-600" : ""}
+                    ${color === "violet" ? "bg-violet-100 text-violet-600" : ""}
+                    ${color === "emerald" ? "bg-emerald-100 text-emerald-600" : ""}
+                  `}>
+                    <Icon className="h-3.5 w-3.5" />
+                  </div>
+                  <span className="text-[11px] font-bold text-slate-700">{label}</span>
+                  <span className="text-[10px] text-slate-400">{sub}</span>
+                </button>
+              ))}
             </div>
           </div>
-          
+
+          {/* Error */}
+          {error && (
+            <div className="mb-4 flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
+              <span className="mt-px text-red-400">⚠</span>
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="rounded-2xl bg-red-500/10 border border-red-500/20 p-4 text-sm text-red-400">
-                {error}
-              </div>
-            )}
-            
-            {/* Input Email */}
-            <div className="space-y-1">
-              <label className="text-xs font-bold uppercase tracking-wider text-neutral-400 ml-1">
-                Adresse Email
+            {/* Email */}
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1.5">
+                Adresse e-mail
               </label>
               <input
+                id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="vous@exemple.com"
                 required
-                className="w-full bg-neutral-900/60 border border-neutral-800 rounded-2xl px-4 py-3 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 transition-all duration-300"
+                autoComplete="email"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-3 focus:ring-violet-100"
               />
             </div>
-            
+
             {/* Password */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between ml-1">
-                <label className="text-xs font-bold uppercase tracking-wider text-neutral-400">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="password" className="block text-sm font-medium text-slate-700">
                   Mot de passe
                 </label>
-                <Link href="#" className="text-xs font-semibold text-violet-400 hover:text-violet-300 transition-colors">
-                  Oublié ?
+                <Link href="#" className="text-xs font-medium text-violet-500 hover:text-violet-600 transition-colors">
+                  Mot de passe oublié ?
                 </Link>
               </div>
               <div className="relative">
                 <input
+                  id="password"
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Votre mot de passe"
+                  placeholder="••••••••"
                   required
-                  className="w-full bg-neutral-900/60 border border-neutral-800 rounded-2xl px-4 py-3 pr-12 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 transition-all duration-300"
+                  autoComplete="current-password"
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 pr-11 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-3 focus:ring-violet-100"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-neutral-500 hover:text-white transition-colors rounded-lg"
+                  aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
 
-            {/* Submit Button */}
-            <button 
-              type="submit" 
-              disabled={loading} 
-              className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold py-3.5 px-4 rounded-2xl shadow-lg shadow-violet-600/20 transform transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none mt-6 flex items-center justify-center gap-2"
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="mt-2 w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-violet-200 transition hover:from-violet-500 hover:to-indigo-500 hover:shadow-md hover:shadow-violet-200 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
-                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-white" />
-                  <span>Connexion en cours...</span>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  Connexion…
                 </>
               ) : (
                 <>
-                  <span>Se connecter</span>
+                  Se connecter
                   <ArrowRight className="h-4 w-4" />
                 </>
               )}
             </button>
-
-            {/* Social Logins Divider */}
-            <div className="relative my-6 py-2">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-neutral-850" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-[#0b0c0e] px-3 py-1 rounded-full border border-neutral-800/80 text-[10px] tracking-widest font-bold text-neutral-500">
-                  Ou continuer avec
-                </span>
-              </div>
-            </div>
-
-            {/* Social Buttons */}
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => handleSocialLogin("Google")}
-                className="flex items-center justify-center gap-2 rounded-2xl border border-neutral-800 bg-neutral-950/40 hover:bg-neutral-850 px-4 py-3 text-sm font-semibold text-white transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0"
-              >
-                <GoogleIcon className="h-5 w-5" />
-                <span>Google</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSocialLogin("Facebook")}
-                className="flex items-center justify-center gap-2 rounded-2xl border border-neutral-800 bg-neutral-950/40 hover:bg-neutral-850 px-4 py-3 text-sm font-semibold text-white transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0"
-              >
-                <FacebookIcon className="h-5 w-5" />
-                <span>Facebook</span>
-              </button>
-            </div>
-            
-            {/* Register Link */}
-            <div className="pt-6 border-t border-neutral-800/80 text-center">
-              <p className="text-xs text-neutral-400">
-                Pas encore de compte ?{" "}
-                <Link
-                  href="/auth/register"
-                  className="font-bold text-white hover:text-violet-400 transition-colors"
-                >
-                  S'inscrire maintenant
-                </Link>
-              </p>
-            </div>
           </form>
         </div>
+
+        {/* Footer */}
+        <p className="mt-6 text-center text-sm text-slate-500">
+          Pas encore de compte ?{" "}
+          <Link href="/auth/register" className="font-semibold text-violet-600 hover:text-violet-700 transition-colors">
+            Créer un compte
+          </Link>
+        </p>
       </div>
     </div>
   );

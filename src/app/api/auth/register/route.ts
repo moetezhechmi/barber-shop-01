@@ -7,6 +7,7 @@ import { hashPassword, signToken } from "@/lib/auth";
 const schema = z.object({
   name: z.string().min(1),
   email: z.string().email(),
+  phone: z.string().optional(),
   password: z.string().min(6),
   role: z.enum(["CLIENT", "OWNER"]).optional().default("CLIENT"),
 });
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
-    const { name, email, password, role } = parsed.data;
+    const { name, email, phone, password, role } = parsed.data;
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
     const hashedPassword = await hashPassword(password);
 
     const user = await prisma.user.create({
-      data: { name, email, password: hashedPassword, role },
+      data: { name, email, phone: phone ?? null, password: hashedPassword, role },
       select: { id: true, name: true, email: true, role: true, phone: true, image: true },
     });
 

@@ -1,7 +1,6 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
-import { Badge } from "@/components/ui/badge";
 import { CalendarCheck, Clock, Users, TrendingUp, Scissors } from "lucide-react";
 import { getStatusColor, getStatusLabel, formatTime } from "@/lib/utils";
 
@@ -39,10 +38,7 @@ interface Barber {
 }
 
 function getLocalDate(d: Date = new Date()): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function getMonday(d: Date = new Date()): string {
@@ -53,12 +49,21 @@ function getMonday(d: Date = new Date()): string {
   return getLocalDate(monday);
 }
 
+const STATUS_TABS = [
+  { key: "ALL",       label: "Tous" },
+  { key: "PENDING",   label: "En attente" },
+  { key: "CONFIRMED", label: "Confirmés" },
+  { key: "COMPLETED", label: "Terminés" },
+  { key: "CANCELLED", label: "Annulés" },
+] as const;
+
+type StatusTab = (typeof STATUS_TABS)[number]["key"];
+
 export default function BarberDashboardPage() {
-  const [user, setUser] = React.useState<{ id: string } | null>(null);
-  const [barber, setBarber] = React.useState<Barber | null>(null);
   const [appointments, setAppointments] = React.useState<Appointment[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [activeTab, setActiveTab] = React.useState<StatusTab>("ALL");
 
   const today = getLocalDate();
   const weekStart = getMonday();
@@ -70,24 +75,17 @@ export default function BarberDashboardPage() {
         const meRes = await fetch("/api/auth/me");
         if (!meRes.ok) throw new Error("Non connecté");
         const { user: me } = await meRes.json();
-        if (cancelled) return;
-        setUser(me);
 
         const barberRes = await fetch("/api/barbers");
-        if (!barberRes.ok) throw new Error("Erreur lors du chargement du profil");
+        if (!barberRes.ok) throw new Error("Erreur profil coiffeur");
         const { barbers } = await barberRes.json();
-        let myBarber = barbers?.find(
-          (b: { userId: string }) => b.userId === me.id
-        );
-        
+        let myBarber = barbers?.find((b: { userId: string }) => b.userId === me.id);
+
         if (!myBarber && me.role === "BARBER") {
-          // Automatically create the barber profile if it doesn't exist yet
           const createRes = await fetch("/api/barbers", { method: "POST" });
           if (createRes.ok) {
             const createData = await createRes.json();
             myBarber = createData.barber;
-            
-            // Re-fetch the barbers list to ensure we have the correct populated object
             const refetchRes = await fetch("/api/barbers");
             if (refetchRes.ok) {
               const refetchData = await refetchRes.json();
@@ -95,20 +93,15 @@ export default function BarberDashboardPage() {
             }
           }
         }
-        
-        if (!myBarber) throw new Error("Aucun profil coiffeur trouvé");
-        if (cancelled) return;
-        setBarber(myBarber);
 
-        const apptRes = await fetch(
-          `/api/barbers/${myBarber.id}/appointments`
-        );
-        if (!apptRes.ok) throw new Error("Erreur lors du chargement des rendez-vous");
+        if (!myBarber) throw new Error("Aucun profil coiffeur trouvé");
+
+        const apptRes = await fetch(`/api/barbers/${myBarber.id}/appointments`);
+        if (!apptRes.ok) throw new Error("Erreur chargement rendez-vous");
         const { appointments: appts } = await apptRes.json();
         if (!cancelled) setAppointments(appts ?? []);
       } catch (err) {
-        if (!cancelled)
-          setError(err instanceof Error ? err.message : "Une erreur est survenue");
+        if (!cancelled) setError(err instanceof Error ? err.message : "Une erreur est survenue");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -118,145 +111,159 @@ export default function BarberDashboardPage() {
   }, []);
 
   const todayAppts = appointments.filter((a) => a.date === today);
-  const pendingCount = appointments.filter(
-    (a) => a.status === "PENDING"
-  ).length;
+  const pendingCount = appointments.filter((a) => a.status === "PENDING").length;
   const completedThisWeek = appointments.filter(
     (a) => a.status === "COMPLETED" && a.date >= weekStart && a.date <= today
   );
   const totalClients = new Set(appointments.map((a) => a.clientId)).size;
 
+  const filteredToday = React.useMemo(() => {
+    if (activeTab === "ALL") return todayAppts;
+    return todayAppts.filter((a) => a.status === activeTab);
+  }, [todayAppts, activeTab]);
+
+  const countByStatus = React.useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const tab of STATUS_TABS) {
+      counts[tab.key] = tab.key === "ALL"
+        ? todayAppts.length
+        : todayAppts.filter((a) => a.status === tab.key).length;
+    }
+    return counts;
+  }, [todayAppts]);
+
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-32 space-y-4 animate-pulse">
-        <div className="relative">
-          <div className="h-16 w-16 rounded-2xl border-4 border-violet-200 dark:border-violet-900 border-t-violet-600 dark:border-t-violet-400 animate-spin" />
-        </div>
-        <p className="text-neutral-500 dark:text-neutral-400 font-medium tracking-wide">Chargement de votre espace...</p>
+      <div className="flex flex-col items-center justify-center py-32 space-y-4">
+        <div className="h-10 w-10 rounded-full border-2 border-violet-200 border-t-violet-600 animate-spin" />
+        <p className="text-sm text-neutral-400 font-medium">Chargement de votre espace…</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center shadow-sm dark:border-red-900/50 dark:bg-red-950/20">
-        <p className="text-red-600 dark:text-red-400 font-medium">{error}</p>
+      <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+        <p className="text-sm text-red-600 font-medium">{error}</p>
       </div>
     );
   }
 
   const stats = [
-    {
-      label: "Aujourd'hui",
-      value: todayAppts.length.toString(),
-      icon: CalendarCheck,
-      gradient: "from-blue-500 to-indigo-500",
-    },
-    {
-      label: "En attente",
-      value: pendingCount.toString(),
-      icon: Clock,
-      gradient: "from-amber-400 to-orange-500",
-    },
-    {
-      label: "Terminés (Semaine)",
-      value: completedThisWeek.length.toString(),
-      icon: TrendingUp,
-      gradient: "from-emerald-400 to-emerald-600",
-    },
-    {
-      label: "Total clients",
-      value: totalClients.toString(),
-      icon: Users,
-      gradient: "from-violet-500 to-purple-500",
-    },
+    { label: "Aujourd'hui",       value: todayAppts.length.toString(),       icon: CalendarCheck, gradient: "from-blue-500 to-indigo-500"    },
+    { label: "En attente",        value: pendingCount.toString(),             icon: Clock,         gradient: "from-amber-400 to-orange-500"   },
+    { label: "Terminés (Semaine)",value: completedThisWeek.length.toString(), icon: TrendingUp,    gradient: "from-emerald-400 to-emerald-600"},
+    { label: "Total clients",     value: totalClients.toString(),             icon: Users,         gradient: "from-violet-500 to-purple-500"  },
   ];
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-indigo-600 dark:from-violet-400 dark:to-indigo-400">
-          Mon Espace Barbier
-        </h1>
-        <p className="text-neutral-600 dark:text-neutral-400">
-          Gérez vos rendez-vous et vos clients de la journée
-        </p>
+    <div className="space-y-6">
+      {/* Page header */}
+      <div>
+        <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">Mon Espace Barbier</h1>
+        <p className="text-sm text-neutral-500 mt-0.5">Gérez vos rendez-vous et clients du jour</p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        {stats.map((stat, index) => {
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {stats.map((stat) => {
           const Icon = stat.icon;
           return (
             <div
               key={stat.label}
-              className="group relative overflow-hidden rounded-3xl bg-white/60 dark:bg-neutral-900/60 backdrop-blur-xl border border-neutral-200/50 dark:border-white/10 p-5 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1"
-              style={{ animationDelay: `${index * 100}ms` }}
+              className="group relative overflow-hidden rounded-xl bg-white border border-neutral-200 p-5 shadow-sm hover:shadow-md hover:border-neutral-300 transition-all"
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
-                <span className="text-sm font-semibold text-neutral-500 dark:text-neutral-400">
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wide">
                   {stat.label}
                 </span>
-                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${stat.gradient} text-white shadow-lg`}>
-                  <Icon className="h-5 w-5" />
+                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${stat.gradient} text-white shadow-sm`}>
+                  <Icon className="h-4 w-4" />
                 </div>
               </div>
-              <div className="mt-2">
-                <p className="text-2xl sm:text-3xl font-extrabold text-neutral-900 dark:text-neutral-50 tracking-tight">
-                  {stat.value}
-                </p>
-              </div>
-              <div className={`absolute bottom-0 left-0 h-1 w-0 bg-gradient-to-r ${stat.gradient} transition-all duration-300 group-hover:w-full`} />
+              <p className="text-2xl font-bold text-neutral-900 tracking-tight">
+                {stat.value}
+              </p>
+              <div className={`absolute bottom-0 left-0 h-0.5 w-0 bg-gradient-to-r ${stat.gradient} transition-all duration-300 group-hover:w-full`} />
             </div>
           );
         })}
       </div>
 
-      <div className="rounded-3xl bg-white/60 dark:bg-neutral-900/60 backdrop-blur-xl border border-neutral-200/50 dark:border-white/10 overflow-hidden shadow-sm">
-        <div className="p-6 border-b border-neutral-200/50 dark:border-white/10 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
-            Rendez-vous du jour
-          </h2>
+      {/* Today appointments with filter */}
+      <div className="rounded-xl bg-white border border-neutral-200 shadow-sm overflow-hidden">
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between gap-4">
+          <h2 className="text-base font-semibold text-neutral-900 shrink-0">Rendez-vous du jour</h2>
+          <span className="text-xs text-neutral-400 font-medium shrink-0">
+            {filteredToday.length} résultat{filteredToday.length !== 1 ? "s" : ""}
+          </span>
         </div>
-        
-        <div className="p-4 sm:p-6">
-          {todayAppts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <CalendarCheck className="h-12 w-12 text-neutral-300 dark:text-neutral-600 mb-4" />
-              <p className="text-neutral-500 dark:text-neutral-400 font-medium">
-                Aucun rendez-vous aujourd'hui
+
+        {/* Filter tabs */}
+        <div className="flex gap-1 px-4 pt-3 pb-0 overflow-x-auto hide-scrollbar">
+          {STATUS_TABS.map((tab) => {
+            const count = countByStatus[tab.key];
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
+                  isActive
+                    ? "bg-violet-600 text-white shadow-sm"
+                    : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800"
+                }`}
+              >
+                {tab.label}
+                {count > 0 && (
+                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${
+                    isActive ? "bg-white/25 text-white" : "bg-neutral-100 text-neutral-500"
+                  }`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* List */}
+        <div className="p-4">
+          {filteredToday.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <CalendarCheck className="h-10 w-10 text-neutral-200 mb-3" />
+              <p className="text-sm text-neutral-400 font-medium">
+                {activeTab === "ALL"
+                  ? "Aucun rendez-vous aujourd\u2019hui"
+                  : `Aucun rendez-vous ${getStatusLabel(activeTab).toLowerCase()} aujourd\u2019hui`}
               </p>
             </div>
           ) : (
-            <div className="grid gap-4">
-              {todayAppts.map((appt) => (
+            <div className="space-y-2">
+              {filteredToday.map((appt) => (
                 <div
                   key={appt.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-white dark:bg-neutral-950 border border-neutral-100 dark:border-neutral-800 hover:border-violet-200 dark:hover:border-violet-900/50 transition-colors shadow-sm"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg bg-neutral-50 border border-neutral-100 hover:border-violet-200 hover:bg-violet-50/30 transition-colors"
                 >
-                  <div className="flex items-start sm:items-center gap-4 flex-1">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 font-bold text-lg">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-600 font-bold text-sm">
                       {appt.client.name.charAt(0).toUpperCase()}
                     </div>
-                    <div className="space-y-1 min-w-0">
-                      <p className="font-bold text-neutral-900 dark:text-neutral-50 truncate text-lg">
-                        {appt.client.name}
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-neutral-900 truncate">{appt.client.name}</p>
+                      <p className="text-xs text-neutral-400 flex items-center gap-1 mt-0.5">
+                        <Scissors className="h-3 w-3" />
+                        {appt.service.name}
                       </p>
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-neutral-500 dark:text-neutral-400">
-                        <span className="flex items-center gap-1">
-                          <Scissors className="h-3.5 w-3.5" />
-                          {appt.service.name}
-                        </span>
-                      </div>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center justify-between sm:flex-col sm:items-end gap-2 border-t border-neutral-100 dark:border-neutral-800 sm:border-0 pt-4 sm:pt-0">
-                    <div className="flex flex-col sm:items-end">
-                      <span className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                        {formatTime(appt.startTime)} - {formatTime(appt.endTime)}
-                      </span>
-                    </div>
-                    <span className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wide shadow-sm ${getStatusColor(appt.status)}`}>
+
+                  <div className="flex items-center gap-3 sm:flex-shrink-0">
+                    <p className="text-xs font-semibold text-neutral-600 hidden sm:block">
+                      {formatTime(appt.startTime)} \u2013 {formatTime(appt.endTime)}
+                    </p>
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${getStatusColor(appt.status)}`}>
                       {getStatusLabel(appt.status)}
                     </span>
                   </div>

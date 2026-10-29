@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -82,6 +82,7 @@ export default function ShopDetailPage() {
   const [showDesc, setShowDesc] = React.useState(false);
   const [calMonth, setCalMonth] = React.useState(new Date().getMonth());
   const [calYear, setCalYear] = React.useState(new Date().getFullYear());
+  const [isFreeReady, setIsFreeReady] = React.useState(false);
 
   const tx0 = React.useRef(0);
   const tabsRef = React.useRef<HTMLDivElement>(null);
@@ -139,10 +140,12 @@ export default function ShopDetailPage() {
       fetch(`/api/shops/${params.id}`).then(r => r.ok ? r.json() : Promise.reject()),
       fetch(`/api/reviews?shopId=${params.id}`).then(r => r.ok ? r.json() : { reviews: [] }),
       fetch(`/api/shops/${params.id}/promotions`).then(r => r.ok ? r.json() : { promotions: [] }),
-    ]).then(([sd, rd, pd]) => { 
+      fetch("/api/loyalty").then(r => r.ok ? r.json() : { isFreeReady: false }),
+    ]).then(([sd, rd, pd, ld]) => { 
       setShop(sd.shop ?? sd); 
       setReviews(rd.reviews || []); 
       setPromotions(pd.promotions || []);
+      setIsFreeReady(ld.isFreeReady === true);
     })
       .catch(() => setError("Impossible de charger le salon"))
       .finally(() => setLoading(false));
@@ -188,7 +191,7 @@ export default function ShopDetailPage() {
   const origPrice = svc?.price ?? 0;
   const discountVal = Number(promoDiscount);
   const hasDiscount = isPromo && !isNaN(discountVal) && discountVal > 0;
-  const finalPrice = hasDiscount ? origPrice * (1 - discountVal / 100) : origPrice;
+  const finalPrice = isFreeReady ? 0 : hasDiscount ? origPrice * (1 - discountVal / 100) : origPrice;
   const shopRating = reviews.length ? reviews.reduce((a, r) => a + r.rating, 0) / reviews.length : 4.9;
   const imgs = shop?.images ?? [];
   const s1 = !!booking.service;
@@ -352,7 +355,7 @@ export default function ShopDetailPage() {
               ["Barbier", barber?.user.name || "Premier disponible"],
               ["Date", safeFormatDate(booking.date)],
               ["Heure", formatTime(booking.time)],
-              ["Prix", isPromo && promoDiscount ? `${formatPrice(finalPrice)} (-${promoDiscount}%)` : formatPrice(origPrice)]
+              ["Prix", isFreeReady ? "0.00 DT (Offert 🎉)" : isPromo && promoDiscount ? `${formatPrice(finalPrice)} (-${promoDiscount}%)` : formatPrice(origPrice)]
             ].map(([k, v]) => (
               <div key={k} className="flex justify-between items-center py-0.5 border-b border-gray-200/40 last:border-none">
                 <span className="text-gray-500 font-medium">{k}</span>
@@ -373,7 +376,7 @@ export default function ShopDetailPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-gray-50/70 text-gray-900 pb-[150px] antialiased selection:bg-violet-600 selection:text-white">
+    <div className="min-h-dvh bg-gray-50/70 text-gray-900 pb-[160px] antialiased selection:bg-violet-600 selection:text-white">
 
       {/* ── TOP IMMERSIVE HERO WITH GLASS CONTROLS ── */}
       <div 
@@ -1187,10 +1190,12 @@ export default function ShopDetailPage() {
       </div>
 
       {/* ── STICKY FLOATING CONFIRMATION FOOTER (LIGHT) ── */}
-      <div className={`fixed bottom-2 inset-x-0 z-40 px-4 transition-all duration-300 ${
-        ready ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0 pointer-events-none"
-      }`}>
-        <div className="mx-auto max-w-lg bg-white/95 backdrop-blur-2xl border border-gray-200/80 rounded-3xl p-3 sm:p-4 shadow-2xl flex items-center justify-between gap-4">
+      <div className={`fixed inset-x-0 z-50 px-4 transition-all duration-300 ${
+        ready ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+      }`}
+        style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 72px)" }}
+      >
+        <div className="mx-auto max-w-lg bg-white border border-gray-200 rounded-2xl p-3 sm:p-4 shadow-xl flex items-center justify-between gap-4">
           <div className="min-w-0">
             <p className="text-xs font-bold text-gray-500 truncate">
               {safeFormatDate(booking.date)} · {formatTime(booking.time)}
@@ -1202,7 +1207,7 @@ export default function ShopDetailPage() {
 
           <button
             onClick={() => setShowSheet(true)}
-            className="shrink-0 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 px-5 py-3 text-xs sm:text-sm font-black text-white shadow-lg shadow-violet-500/25 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+            className="shrink-0 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 px-5 py-3 text-xs sm:text-sm font-black text-white shadow-lg shadow-violet-200 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
           >
             {hasDiscount ? (
               <span className="flex items-center gap-1.5">
@@ -1254,7 +1259,13 @@ export default function ShopDetailPage() {
                 <div className="flex justify-between items-center pt-3 border-t border-gray-200/60">
                   <span className="text-gray-600 font-bold">Total à régler sur place</span>
                   <div>
-                    {hasDiscount ? (
+                    {isFreeReady ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400 line-through">{formatPrice(origPrice)}</span>
+                        <span className="font-black text-base text-emerald-600">0.00 DT</span>
+                        <span className="text-[10px] font-black bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded-md">OFFERT</span>
+                      </div>
+                    ) : hasDiscount ? (
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-gray-400 line-through">{formatPrice(origPrice)}</span>
                         <span className="font-black text-base text-red-600">{formatPrice(finalPrice)}</span>
@@ -1284,7 +1295,7 @@ export default function ShopDetailPage() {
                 className="w-full rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 py-4 text-sm font-black text-white shadow-xl shadow-violet-500/25 active:scale-[0.99] transition-all disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer"
               >
                 {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle className="h-5 w-5" />}
-                {submitting ? "Validation en cours..." : "Confirmer mon rendez-vous"}
+                {submitting ? "Validation en cours..." : isFreeReady ? "Confirmer — Rendez-vous GRATUIT 🎉" : "Confirmer mon rendez-vous"}
               </button>
             </div>
           </div>

@@ -1,11 +1,18 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { Calendar, Clock, User, Scissors, Star, X, CheckCircle, Loader2, MapPin } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { Spinner } from "@/components/ui/spinner";
+import { LoyaltyCard, LoyaltyCardSkeleton } from "@/components/ui/loyalty-card";
 import { formatDate, formatTime, getStatusLabel } from "@/lib/utils";
+
+interface LoyaltyData {
+  stamps: number;
+  totalEarned: number;
+  cardsCompleted: number;
+}
 
 interface Appointment {
   id: string;
@@ -22,8 +29,8 @@ interface Appointment {
 
 const TABS = [
   { value: "", label: "Tous" },
-  { value: "upcoming", label: "À venir" },
-  { value: "past", label: "Passés" },
+  { value: "upcoming", label: "Ã€ venir" },
+  { value: "past", label: "PassÃ©s" },
 ];
 
 export default function AppointmentsPage() {
@@ -37,6 +44,21 @@ export default function AppointmentsPage() {
   const [comment, setComment] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [cancelling, setCancelling] = React.useState<string | null>(null);
+  const [loyalty, setLoyalty] = React.useState<LoyaltyData | null>(null);
+  const [loyaltyLoading, setLoyaltyLoading] = React.useState(true);
+
+  const fetchLoyalty = React.useCallback(async () => {
+    try {
+      const res = await window.fetch("/api/loyalty");
+      if (!res.ok) return;
+      const data = await res.json();
+      setLoyalty(data.card);
+    } catch {
+      // silent
+    } finally {
+      setLoyaltyLoading(false);
+    }
+  }, []);
 
   const fetch = React.useCallback(async () => {
     setLoading(true);
@@ -52,7 +74,7 @@ export default function AppointmentsPage() {
     }
   }, []);
 
-  React.useEffect(() => { fetch(); }, [fetch]);
+  React.useEffect(() => { fetch(); fetchLoyalty(); }, [fetch, fetchLoyalty]);
 
   const filtered = React.useMemo(() => {
     const now = new Date();
@@ -70,7 +92,7 @@ export default function AppointmentsPage() {
         body: JSON.stringify({ status: "CANCELLED" }),
       });
       if (!res.ok) throw new Error();
-      toast("Rendez-vous annulé", "success");
+      toast("Rendez-vous annulÃ©", "success");
       fetch();
     } catch {
       toast("Erreur", "error");
@@ -123,12 +145,38 @@ export default function AppointmentsPage() {
       {/* Hero */}
       <div className="bg-gradient-to-br from-violet-600 to-indigo-600 px-4 py-8">
         <div className="max-w-lg mx-auto">
-          <h1 className="text-3xl font-black text-white mb-2">Mes rendez-vous</h1>
-          <p className="text-violet-100 text-sm">
-            {filtered.length > 0 
-              ? `${filtered.length} rendez-vous ${tab === "upcoming" ? "à venir" : tab === "past" ? "passés" : "au total"}`
-              : "Aucun rendez-vous"}
-          </p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h1 className="text-3xl font-black text-white mb-1">Mes rendez-vous</h1>
+              <p className="text-violet-100 text-sm">
+                {filtered.length > 0
+                  ? `${filtered.length} rendez-vous ${tab === "upcoming" ? "à venir" : tab === "past" ? "passés" : "au total"}`
+                  : "Aucun rendez-vous"}
+              </p>
+            </div>
+            {loyalty && loyalty.cardsCompleted > 0 && (
+              <div className="flex flex-col items-center justify-center rounded-2xl bg-white/20 border border-white/30 px-3 py-2 shrink-0">
+                <span className="text-2xl font-black text-white leading-none">{loyalty.cardsCompleted}</span>
+                <span className="text-[10px] font-semibold text-violet-200 uppercase tracking-wide mt-0.5">
+                  {loyalty.cardsCompleted > 1 ? "cartes" : "carte"}
+                </span>
+                <span className="text-[10px] text-violet-300">complétée{loyalty.cardsCompleted > 1 ? "s" : ""}</span>
+              </div>
+            )}
+          </div>
+                    {/* Loyalty card */}
+          <div className="mt-5">
+            {loyaltyLoading ? (
+              <LoyaltyCardSkeleton />
+            ) : loyalty ? (
+              <LoyaltyCard
+                stamps={loyalty.stamps}
+                goal={9}
+                totalEarned={loyalty.totalEarned}
+                cardsCompleted={loyalty.cardsCompleted}
+              />
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -152,7 +200,7 @@ export default function AppointmentsPage() {
           <div className="bg-white rounded-2xl p-12 text-center shadow-sm">
             <Calendar className="h-12 w-12 text-gray-200 mx-auto mb-3" />
             <p className="font-bold text-gray-900">Aucun rendez-vous</p>
-            <p className="text-xs text-gray-400 mt-1">Réservez votre prochaine coupe !</p>
+            <p className="text-xs text-gray-400 mt-1">RÃ©servez votre prochaine coupe !</p>
           </div>
         ) : (
           filtered.map(apt => {
@@ -166,7 +214,7 @@ export default function AppointmentsPage() {
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-gray-900 text-sm truncate">{apt.shop.name}</h3>
-                    <p className="text-xs text-gray-400 truncate">{apt.shop.address || "—"}</p>
+                    <p className="text-xs text-gray-400 truncate">{apt.shop.address || "â€”"}</p>
                   </div>
                   <span className={`shrink-0 px-2 py-1 rounded-lg text-[10px] font-bold ${
                     apt.status === "CONFIRMED" ? "bg-blue-50 text-blue-600" :
@@ -235,7 +283,7 @@ export default function AppointmentsPage() {
                   {apt.review && (
                     <div className="flex-1 rounded-xl bg-green-50 border border-green-100 py-2.5 text-xs font-bold text-green-600 flex items-center justify-center gap-1.5">
                       <CheckCircle className="h-3.5 w-3.5" />
-                      Avis publié
+                      Avis publiÃ©
                     </div>
                   )}
                 </div>
@@ -251,7 +299,7 @@ export default function AppointmentsPage() {
           {reviewApt && (
             <div className="bg-violet-50 rounded-2xl p-4 border border-violet-100">
               <p className="font-bold text-gray-900 text-sm">{reviewApt.shop.name}</p>
-              <p className="text-xs text-gray-500 mt-1">{reviewApt.service.name} · {reviewApt.barber.user.name}</p>
+              <p className="text-xs text-gray-500 mt-1">{reviewApt.service.name} Â· {reviewApt.barber.user.name}</p>
             </div>
           )}
 
@@ -271,7 +319,7 @@ export default function AppointmentsPage() {
             <p className="text-xs font-bold text-gray-500 mb-2">Commentaire (optionnel)</p>
             <textarea value={comment} onChange={e => setComment(e.target.value)} rows={3}
               className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:border-violet-500 focus:outline-none resize-none"
-              placeholder="Votre expérience..." />
+              placeholder="Votre expÃ©rience..." />
           </div>
 
           <button onClick={submitReview} disabled={submitting || rating === 0}

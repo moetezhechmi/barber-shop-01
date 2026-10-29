@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { Calendar, Users, Scissors, Coins, Clock, User } from "lucide-react";
@@ -8,28 +8,7 @@ interface Shop {
   id: string;
   name: string;
   ownerId: string;
-  _count: { barbers: number };
-}
-
-interface Service {
-  id: string;
-  name: string;
-  price: number;
-  duration: number;
-}
-
-interface BarberUser {
-  id: string;
-  name: string;
-  image: string | null;
-}
-
-interface Barber {
-  id: string;
-  userId: string;
-  shopId: string;
-  isApproved: boolean;
-  user: BarberUser;
+  _count: { barbers: number; services: number };
 }
 
 interface AppointmentBarber {
@@ -56,12 +35,30 @@ interface Appointment {
   shop: { id: string; name: string };
 }
 
+interface Barber {
+  id: string;
+  userId: string;
+  shopId: string;
+  isApproved: boolean;
+}
+
+const STATUS_TABS = [
+  { key: "ALL",       label: "Tous" },
+  { key: "PENDING",   label: "En attente" },
+  { key: "CONFIRMED", label: "Confirmés" },
+  { key: "COMPLETED", label: "Terminés" },
+  { key: "CANCELLED", label: "Annulés" },
+] as const;
+
+type StatusTab = (typeof STATUS_TABS)[number]["key"];
+
 export default function OwnerDashboardPage() {
   const [shops, setShops] = React.useState<Shop[]>([]);
   const [appointments, setAppointments] = React.useState<Appointment[]>([]);
   const [barbers, setBarbers] = React.useState<Barber[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [activeTab, setActiveTab] = React.useState<StatusTab>("ALL");
 
   React.useEffect(() => {
     async function fetchData() {
@@ -89,161 +86,172 @@ export default function OwnerDashboardPage() {
         setLoading(false);
       }
     }
-
     fetchData();
   }, []);
 
+  const filteredAppointments = React.useMemo(() => {
+    if (activeTab === "ALL") return appointments;
+    return appointments.filter((a) => a.status === activeTab);
+  }, [appointments, activeTab]);
+
+  const countByStatus = React.useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const tab of STATUS_TABS) {
+      counts[tab.key] = tab.key === "ALL"
+        ? appointments.length
+        : appointments.filter((a) => a.status === tab.key).length;
+    }
+    return counts;
+  }, [appointments]);
+
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-32 space-y-4 animate-pulse">
-        <div className="relative">
-          <div className="h-16 w-16 rounded-2xl border-4 border-violet-200 dark:border-violet-900 border-t-violet-600 dark:border-t-violet-400 animate-spin" />
-        </div>
-        <p className="text-neutral-500 dark:text-neutral-400 font-medium tracking-wide">Chargement du tableau de bord...</p>
+      <div className="flex flex-col items-center justify-center py-32 space-y-4">
+        <div className="h-10 w-10 rounded-full border-2 border-violet-200 border-t-violet-600 animate-spin" />
+        <p className="text-sm text-neutral-400 font-medium">Chargement du tableau de bord…</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center shadow-sm dark:border-red-900/50 dark:bg-red-950/20">
-        <p className="text-red-600 dark:text-red-400 font-medium">{error}</p>
+      <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+        <p className="text-sm text-red-600 font-medium">{error}</p>
       </div>
     );
   }
 
   const totalBarbers = barbers.filter((b) => b.isApproved).length;
-  const totalServices = shops.reduce((sum, s) => sum + (s._count?.barbers || 0), 0);
+  const totalServices = shops.reduce((sum, s) => sum + (s._count?.services || 0), 0);
   const completedAppointments = appointments.filter((a) => a.status === "COMPLETED");
-  const revenue = completedAppointments.reduce(
-    (sum, a) => sum + (a.service?.price || 0),
-    0
-  );
-  const recentAppointments = appointments.slice(0, 10);
+  const revenue = completedAppointments.reduce((sum, a) => sum + (a.service?.price || 0), 0);
 
   const stats = [
-    {
-      label: "Rendez-vous",
-      value: appointments.length.toString(),
-      icon: Calendar,
-      gradient: "from-blue-500 to-indigo-500",
-    },
-    {
-      label: "Barbiers",
-      value: totalBarbers.toString(),
-      icon: Users,
-      gradient: "from-violet-500 to-purple-500",
-    },
-    {
-      label: "Services",
-      value: totalServices.toString(),
-      icon: Scissors,
-      gradient: "from-emerald-400 to-emerald-600",
-    },
-    {
-      label: "Revenu",
-      value: formatPrice(revenue),
-      icon: Coins,
-      gradient: "from-amber-400 to-orange-500",
-    },
+    { label: "Rendez-vous", value: appointments.length.toString(),  icon: Calendar, gradient: "from-blue-500 to-indigo-500"    },
+    { label: "Barbiers",    value: totalBarbers.toString(),          icon: Users,    gradient: "from-violet-500 to-purple-500"  },
+    { label: "Services",    value: totalServices.toString(),         icon: Scissors, gradient: "from-emerald-400 to-emerald-600"},
+    { label: "Revenu",      value: formatPrice(revenue),             icon: Coins,    gradient: "from-amber-400 to-orange-500"   },
   ];
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-indigo-600 dark:from-violet-400 dark:to-indigo-400">
-          Tableau de bord
-        </h1>
-        <p className="text-neutral-600 dark:text-neutral-400">
-          Vue d'ensemble de votre salon et vos activités récentes
-        </p>
+    <div className="space-y-6">
+      {/* Page header */}
+      <div>
+        <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">Tableau de bord</h1>
+        <p className="text-sm text-neutral-500 mt-0.5">Vue d&apos;ensemble de votre salon</p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        {stats.map((stat, index) => {
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {stats.map((stat) => {
           const Icon = stat.icon;
           return (
             <div
               key={stat.label}
-              className="group relative overflow-hidden rounded-3xl bg-white/60 dark:bg-neutral-900/60 backdrop-blur-xl border border-neutral-200/50 dark:border-white/10 p-5 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1"
-              style={{ animationDelay: `${index * 100}ms` }}
+              className="group relative overflow-hidden rounded-xl bg-white border border-neutral-200 p-5 shadow-sm hover:shadow-md hover:border-neutral-300 transition-all"
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
-                <span className="text-sm font-semibold text-neutral-500 dark:text-neutral-400">
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wide">
                   {stat.label}
                 </span>
-                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${stat.gradient} text-white shadow-lg`}>
-                  <Icon className="h-5 w-5" />
+                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${stat.gradient} text-white shadow-sm`}>
+                  <Icon className="h-4 w-4" />
                 </div>
               </div>
-              <div className="mt-2">
-                <p className="text-2xl sm:text-3xl font-extrabold text-neutral-900 dark:text-neutral-50 tracking-tight">
-                  {stat.value}
-                </p>
-              </div>
-              <div className={`absolute bottom-0 left-0 h-1 w-0 bg-gradient-to-r ${stat.gradient} transition-all duration-300 group-hover:w-full`} />
+              <p className="text-2xl font-bold text-neutral-900 tracking-tight">
+                {stat.value}
+              </p>
+              <div className={`absolute bottom-0 left-0 h-0.5 w-0 bg-gradient-to-r ${stat.gradient} transition-all duration-300 group-hover:w-full`} />
             </div>
           );
         })}
       </div>
 
-      {/* Recent Appointments */}
-      <div className="rounded-3xl bg-white/60 dark:bg-neutral-900/60 backdrop-blur-xl border border-neutral-200/50 dark:border-white/10 overflow-hidden shadow-sm">
-        <div className="p-6 border-b border-neutral-200/50 dark:border-white/10 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
-            Rendez-vous récents
-          </h2>
+      {/* Appointments with filter tabs */}
+      <div className="rounded-xl bg-white border border-neutral-200 shadow-sm overflow-hidden">
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between gap-4">
+          <h2 className="text-base font-semibold text-neutral-900 shrink-0">Rendez-vous récents</h2>
+          <span className="text-xs text-neutral-400 font-medium shrink-0">
+            {filteredAppointments.length} résultat{filteredAppointments.length !== 1 ? "s" : ""}
+          </span>
         </div>
-        
-        <div className="p-4 sm:p-6">
-          {recentAppointments.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Calendar className="h-12 w-12 text-neutral-300 dark:text-neutral-600 mb-4" />
-              <p className="text-neutral-500 dark:text-neutral-400 font-medium">
-                Aucun rendez-vous pour le moment
+
+        {/* Filter tabs */}
+        <div className="flex gap-1 px-4 pt-3 pb-0 overflow-x-auto hide-scrollbar">
+          {STATUS_TABS.map((tab) => {
+            const count = countByStatus[tab.key];
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
+                  isActive
+                    ? "bg-violet-600 text-white shadow-sm"
+                    : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800"
+                }`}
+              >
+                {tab.label}
+                {count > 0 && (
+                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${
+                    isActive ? "bg-white/25 text-white" : "bg-neutral-100 text-neutral-500"
+                  }`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* List */}
+        <div className="p-4">
+          {filteredAppointments.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <Calendar className="h-10 w-10 text-neutral-200 mb-3" />
+              <p className="text-sm text-neutral-400 font-medium">
+                Aucun rendez-vous{activeTab !== "ALL" ? ` ${getStatusLabel(activeTab).toLowerCase()}` : ""}
               </p>
             </div>
           ) : (
-            <div className="grid gap-4">
-              {recentAppointments.map((apt) => (
-                <div 
-                  key={apt.id} 
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-white dark:bg-neutral-950 border border-neutral-100 dark:border-neutral-800 hover:border-violet-200 dark:hover:border-violet-900/50 transition-colors shadow-sm"
+            <div className="space-y-2">
+              {filteredAppointments.map((apt) => (
+                <div
+                  key={apt.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg bg-neutral-50 border border-neutral-100 hover:border-violet-200 hover:bg-violet-50/30 transition-colors"
                 >
-                  <div className="flex items-start sm:items-center gap-4 flex-1">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 font-bold text-lg">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-600 font-bold text-sm">
                       {apt.client?.name ? apt.client.name.charAt(0).toUpperCase() : "?"}
                     </div>
-                    <div className="space-y-1 min-w-0">
-                      <p className="font-bold text-neutral-900 dark:text-neutral-50 truncate text-lg">
-                        {apt.client?.name || "Client Inconnu"}
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-neutral-900 truncate">
+                        {apt.client?.name || "Client inconnu"}
                       </p>
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-neutral-500 dark:text-neutral-400">
+                      <div className="flex items-center gap-2 text-xs text-neutral-400 mt-0.5">
                         <span className="flex items-center gap-1">
-                          <Scissors className="h-3.5 w-3.5" />
+                          <Scissors className="h-3 w-3" />
                           {apt.service?.name || "—"}
                         </span>
-                        <span className="hidden sm:inline text-neutral-300 dark:text-neutral-700">•</span>
+                        <span>·</span>
                         <span className="flex items-center gap-1">
-                          <User className="h-3.5 w-3.5" />
+                          <User className="h-3 w-3" />
                           {apt.barber?.user?.name || "—"}
                         </span>
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center justify-between sm:flex-col sm:items-end gap-2 border-t border-neutral-100 dark:border-neutral-800 sm:border-0 pt-4 sm:pt-0">
-                    <div className="flex flex-col sm:items-end">
-                      <span className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                        {formatDate(apt.date)}
-                      </span>
-                      <span className="text-xs text-neutral-500 flex items-center gap-1 mt-0.5">
+
+                  <div className="flex items-center gap-3 sm:flex-shrink-0">
+                    <div className="text-right hidden sm:block">
+                      <p className="text-xs font-semibold text-neutral-700">{formatDate(apt.date)}</p>
+                      <p className="text-xs text-neutral-400 flex items-center gap-1 justify-end mt-0.5">
                         <Clock className="h-3 w-3" />
                         {formatTime(apt.startTime)}
-                      </span>
+                      </p>
                     </div>
-                    <span className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wide shadow-sm ${getStatusColor(apt.status)}`}>
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${getStatusColor(apt.status)}`}>
                       {getStatusLabel(apt.status)}
                     </span>
                   </div>

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
@@ -116,6 +116,20 @@ export async function POST(req: NextRequest) {
     const endMin = totalMinutes % 60;
     const endTime = `${String(endHour).padStart(2, "0")}:${String(endMin).padStart(2, "0")}`;
 
+    // Check if client has a full loyalty card (free appointment)
+    const loyaltyCard = await prisma.loyaltyCard.findUnique({
+      where: { clientId: user.id },
+    });
+    const isFreeAppointment = (loyaltyCard?.stamps ?? 0) >= 9;
+    if (isFreeAppointment && loyaltyCard) {
+      await prisma.loyaltyCard.update({
+        where: { clientId: user.id },
+        data: { stamps: 0, cardsCompleted: { increment: 1 } },
+      });
+    }
+    const loyaltyNote = isFreeAppointment ? "[GRATUIT - Carte de fidelite]" : "";
+    const finalNotes = [loyaltyNote, parsed.data.notes].filter(Boolean).join(" | ") || undefined;
+
     const appointment = await prisma.appointment.create({
       data: {
         clientId: user.id,
@@ -125,7 +139,7 @@ export async function POST(req: NextRequest) {
         date: parsed.data.date,
         startTime: parsed.data.startTime,
         endTime,
-        notes: parsed.data.notes,
+        notes: finalNotes,
       },
       include: {
         client: { select: { id: true, name: true, email: true } },

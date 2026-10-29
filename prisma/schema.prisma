@@ -23,6 +23,7 @@ model User {
   reviews       Review[]
   notifications Notification[]
   orders        Order[]
+  loyaltyCard   LoyaltyCard?
 }
 
 model Shop {
@@ -218,4 +219,16 @@ model OrderItem {
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id])
+}
+
+model LoyaltyCard {
+  id          String   @id @default(cuid())
+  clientId    String   @unique
+  stamps      Int      @default(0)   // current stamps on active card (0–9)
+  totalEarned Int      @default(0)   // cumulative lifetime stamps
+  cardsCompleted Int   @default(0)   // number of times 10-stamp goal was reached
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  client User @relation(fields: [clientId], references: [id])
 }

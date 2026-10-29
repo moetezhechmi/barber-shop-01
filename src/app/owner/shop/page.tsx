@@ -667,9 +667,9 @@ export default function OwnerShopPage() {
   function openHoursModal() {
     if (!shop) return;
     const initial = DAYS_OF_WEEK.map((_, i) => {
-      const existing = workingHours.find((w) => w.dayOfWeek === (i + 1) % 7);
+      const existing = workingHours.find((w) => w.dayOfWeek === i);
       return {
-        dayOfWeek: (i + 1) % 7,
+        dayOfWeek: i,
         startTime: existing?.startTime ?? "09:00",
         endTime: existing?.endTime ?? "18:00",
         isAvailable: existing?.isAvailable ?? false,
@@ -1634,11 +1634,12 @@ export default function OwnerShopPage() {
             </h2>
             <div className="space-y-3 overflow-y-auto pr-1 flex-1 py-1">
               {DAYS_OF_WEEK.map((dayLabel, i) => {
-                const fh = hoursForm.find((h) => h.dayOfWeek === (i + 1) % 7);
+                const fh = hoursForm.find((h) => h.dayOfWeek === i);
                 if (!fh) return null;
+                const dayIndex = i;
                 return (
                   <div
-                    key={fh.dayOfWeek}
+                    key={dayLabel}
                     className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-neutral-200 p-3 dark:border-neutral-800 hover:bg-neutral-50/50 dark:hover:bg-neutral-900/10 transition-colors"
                   >
                     <label className="flex items-center gap-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-300 cursor-pointer select-none">
@@ -1646,10 +1647,11 @@ export default function OwnerShopPage() {
                         type="checkbox"
                         checked={fh.isAvailable}
                         onChange={(e) => {
+                          const checked = e.target.checked;
                           setHoursForm((prev) =>
                             prev.map((h) =>
-                              h.dayOfWeek === fh.dayOfWeek
-                                ? { ...h, isAvailable: e.target.checked }
+                              h.dayOfWeek === dayIndex
+                                ? { ...h, isAvailable: checked }
                                 : h
                             )
                           );
@@ -1664,10 +1666,11 @@ export default function OwnerShopPage() {
                         value={fh.startTime}
                         disabled={!fh.isAvailable}
                         onChange={(e) => {
+                          const val = e.target.value;
                           setHoursForm((prev) =>
                             prev.map((h) =>
-                              h.dayOfWeek === fh.dayOfWeek
-                                ? { ...h, startTime: e.target.value }
+                              h.dayOfWeek === dayIndex
+                                ? { ...h, startTime: val }
                                 : h
                             )
                           );
@@ -1680,10 +1683,11 @@ export default function OwnerShopPage() {
                         value={fh.endTime}
                         disabled={!fh.isAvailable}
                         onChange={(e) => {
+                          const val = e.target.value;
                           setHoursForm((prev) =>
                             prev.map((h) =>
-                              h.dayOfWeek === fh.dayOfWeek
-                                ? { ...h, endTime: e.target.value }
+                              h.dayOfWeek === dayIndex
+                                ? { ...h, endTime: val }
                                 : h
                             )
                           );

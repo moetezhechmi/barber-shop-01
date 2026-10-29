@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
     const shops = await prisma.shop.findMany({
       where,
       include: {
-        _count: { select: { barbers: true } },
+        _count: { select: { barbers: true, services: true } },
       },
     });
     return NextResponse.json({ shops, barbers });
