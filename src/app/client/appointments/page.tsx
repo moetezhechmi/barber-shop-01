@@ -6,6 +6,8 @@ import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { Spinner } from "@/components/ui/spinner";
 import { LoyaltyCard, LoyaltyCardSkeleton } from "@/components/ui/loyalty-card";
+import { useLoyaltyStore } from "@/store/loyalty.store";
+import { useSSEStore } from "@/store/sse.store";
 import { formatDate, formatTime, getStatusLabel } from "@/lib/utils";
 
 interface LoyaltyData {
@@ -29,8 +31,8 @@ interface Appointment {
 
 const TABS = [
   { value: "", label: "Tous" },
-  { value: "upcoming", label: "Ã€ venir" },
-  { value: "past", label: "PassÃ©s" },
+  { value: "upcoming", label: "À venir" },
+  { value: "past", label: "Passés" },
 ];
 
 export default function AppointmentsPage() {
@@ -44,21 +46,9 @@ export default function AppointmentsPage() {
   const [comment, setComment] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [cancelling, setCancelling] = React.useState<string | null>(null);
-  const [loyalty, setLoyalty] = React.useState<LoyaltyData | null>(null);
-  const [loyaltyLoading, setLoyaltyLoading] = React.useState(true);
-
-  const fetchLoyalty = React.useCallback(async () => {
-    try {
-      const res = await window.fetch("/api/loyalty");
-      if (!res.ok) return;
-      const data = await res.json();
-      setLoyalty(data.card);
-    } catch {
-      // silent
-    } finally {
-      setLoyaltyLoading(false);
-    }
-  }, []);
+  const { stamps, totalEarned, cardsCompleted, goal, loading: loyaltyLoading, fetchLoyalty } = useLoyaltyStore();
+  const loyalty = { stamps, totalEarned, cardsCompleted };
+  const { addListener } = useSSEStore();
 
   const fetch = React.useCallback(async () => {
     setLoading(true);
@@ -74,7 +64,23 @@ export default function AppointmentsPage() {
     }
   }, []);
 
-  React.useEffect(() => { fetch(); fetchLoyalty(); }, [fetch, fetchLoyalty]);
+  React.useEffect(() => { fetch(); }, [fetch]);
+  React.useEffect(() => { fetchLoyalty(); }, [fetchLoyalty]);
+
+  // Real-time: refresh when any appointment status changes
+  React.useEffect(() => {
+    const remove = addListener((event) => {
+      if (event.type === "appointment_updated") {
+        // Update status in-place without full reload
+        setAppointments((prev) =>
+          prev.map((a) =>
+            a.id === event.appointmentId ? { ...a, status: event.status } : a
+          )
+        );
+      }
+    });
+    return remove;
+  }, [addListener]);
 
   const filtered = React.useMemo(() => {
     const now = new Date();
@@ -170,10 +176,10 @@ export default function AppointmentsPage() {
               <LoyaltyCardSkeleton />
             ) : loyalty ? (
               <LoyaltyCard
-                stamps={loyalty.stamps}
-                goal={9}
-                totalEarned={loyalty.totalEarned}
-                cardsCompleted={loyalty.cardsCompleted}
+                stamps={stamps}
+                goal={goal}
+                totalEarned={totalEarned}
+                cardsCompleted={cardsCompleted}
               />
             ) : null}
           </div>

@@ -1,4 +1,5 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { broadcastToAll } from "@/app/api/sse/route";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
@@ -117,37 +118,59 @@ export async function POST(req: NextRequest) {
     const endTime = `${String(endHour).padStart(2, "0")}:${String(endMin).padStart(2, "0")}`;
 
     // Check if client has a full loyalty card (free appointment)
+    // NOTE: we only READ here — the card reset happens on COMPLETED (status/route.ts)
+    // This prevents losing the free slot if the transaction fails or the RDV gets cancelled.
     const loyaltyCard = await prisma.loyaltyCard.findUnique({
       where: { clientId: user.id },
     });
     const isFreeAppointment = (loyaltyCard?.stamps ?? 0) >= 9;
-    if (isFreeAppointment && loyaltyCard) {
-      await prisma.loyaltyCard.update({
-        where: { clientId: user.id },
-        data: { stamps: 0, cardsCompleted: { increment: 1 } },
-      });
-    }
     const loyaltyNote = isFreeAppointment ? "[GRATUIT - Carte de fidelite]" : "";
     const finalNotes = [loyaltyNote, parsed.data.notes].filter(Boolean).join(" | ") || undefined;
 
-    const appointment = await prisma.appointment.create({
-      data: {
-        clientId: user.id,
-        barberId: parsed.data.barberId,
-        shopId: parsed.data.shopId,
-        serviceId: parsed.data.serviceId,
-        date: parsed.data.date,
-        startTime: parsed.data.startTime,
-        endTime,
-        notes: finalNotes,
-      },
-      include: {
-        client: { select: { id: true, name: true, email: true } },
-        service: true,
-        barber: { include: { user: { select: { id: true, name: true } } } },
-      },
-    });
+    // Atomic transaction: check slot + create to prevent race conditions
+    let appointment;
+    try {
+      appointment = await prisma.$transaction(async (tx) => {
+        const conflict = await tx.appointment.findFirst({
+          where: {
+            barberId: parsed.data.barberId,
+            date: parsed.data.date,
+            startTime: parsed.data.startTime,
+            status: { in: ["PENDING", "CONFIRMED"] },
+          },
+        });
+        if (conflict) throw new Error("SLOT_TAKEN");
 
+        return tx.appointment.create({
+          data: {
+            clientId: user.id,
+            barberId: parsed.data.barberId,
+            shopId: parsed.data.shopId,
+            serviceId: parsed.data.serviceId,
+            date: parsed.data.date,
+            startTime: parsed.data.startTime,
+            endTime,
+            notes: finalNotes,
+          },
+          include: {
+            client: { select: { id: true, name: true, email: true } },
+            service: true,
+            barber: { include: { user: { select: { id: true, name: true } } } },
+          },
+        });
+      });
+    } catch (txError) {
+      if (txError instanceof Error && txError.message === "SLOT_TAKEN") {
+        return NextResponse.json(
+          { error: "Ce cr\u00e9neau est d\u00e9j\u00e0 pris. Choisissez un autre horaire." },
+          { status: 409 }
+        );
+      }
+      throw txError;
+    }
+
+    // Broadcast slots_updated so all clients refresh availability
+    broadcastToAll("slots_updated", { barberId: parsed.data.barberId, date: parsed.data.date });
     // Create a real-time database Notification for the Barber
     const dbBarber = await prisma.barber.findUnique({
       where: { id: parsed.data.barberId },

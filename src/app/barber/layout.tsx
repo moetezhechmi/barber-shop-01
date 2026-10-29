@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import Link from "next/link";
@@ -6,6 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { Sidebar, navMap } from "@/components/layout/sidebar";
 import { Navbar } from "@/components/layout/navbar";
 import { ToastProvider, useToast } from "@/components/ui/toast";
+import { SSEProvider } from "@/components/ui/sse-provider";
+import { useNotifStore } from "@/store/notif.store";
 
 interface DbNotification {
   id: string;
@@ -54,60 +56,37 @@ function playChimeSound() {
   }
 }
 
-// Transparent Real-time Database Notification Poller & Audio Player
+// Notification handler using the global notif store
 function NotificationHandler() {
   const { toast } = useToast();
-  const router = useRouter();
+  const { notifications, startPolling } = useNotifStore();
   const seenIds = React.useRef<Set<string>>(new Set());
   const isFirstLoad = React.useRef(true);
 
-  const checkNotifications = React.useCallback(async () => {
-    try {
-      const res = await fetch("/api/notifications");
-      if (!res.ok) return;
-      const data = await res.json();
-      const list: DbNotification[] = data.notifications || [];
-
-      if (isFirstLoad.current) {
-        // On first load, populate the seen list so we don't notify for historical entries
-        list.forEach((n) => seenIds.current.add(n.id));
-        isFirstLoad.current = false;
-        return;
-      }
-
-      // Check for any new unread notifications
-      let hasNewNotification = false;
-      list.forEach((n) => {
-        if (!seenIds.current.has(n.id)) {
-          seenIds.current.add(n.id);
-          hasNewNotification = true;
-
-          // Trigger a beautiful, interactive toast notification
-          toast(n.message, n.type === "APPOINTMENT_REQUEST" ? "info" : "success");
-        }
-      });
-
-      if (hasNewNotification) {
-        // Play the chime audio alert instantly
-        playChimeSound();
-      }
-    } catch (err) {
-      console.error("Error polling notifications:", err);
-    }
-  }, [toast]);
+  React.useEffect(() => {
+    const stop = startPolling(10000);
+    return stop;
+  }, [startPolling]);
 
   React.useEffect(() => {
-    // Check immediately on mount
-    checkNotifications();
-
-    // Poll every 10 seconds (10000ms) for high-reactivity and 100% free operation
-    const interval = setInterval(checkNotifications, 10000);
-    return () => clearInterval(interval);
-  }, [checkNotifications]);
+    if (isFirstLoad.current) {
+      notifications.forEach((n) => seenIds.current.add(n.id));
+      isFirstLoad.current = false;
+      return;
+    }
+    let hasNew = false;
+    notifications.forEach((n) => {
+      if (!seenIds.current.has(n.id)) {
+        seenIds.current.add(n.id);
+        hasNew = true;
+        toast(n.message, n.type === "APPOINTMENT_REQUEST" ? "info" : "success");
+      }
+    });
+    if (hasNew) playChimeSound();
+  }, [notifications, toast]);
 
   return null;
 }
-
 export default function BarberLayout({
   children,
 }: {
@@ -117,7 +96,7 @@ export default function BarberLayout({
   const barberNav = navMap.barber;
 
   return (
-    <ToastProvider>
+    <ToastProvider><SSEProvider>
       <NotificationHandler />
       <div className="min-h-screen bg-slate-50 pb-24 lg:pb-0 font-sans text-neutral-900 selection:bg-violet-100 selection:text-violet-900">
         
@@ -159,6 +138,6 @@ export default function BarberLayout({
           </nav>
         </div>
       </div>
-    </ToastProvider>
+    </SSEProvider></ToastProvider>
   );
 }

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import Link from "next/link";
@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Sidebar, navMap } from "@/components/layout/sidebar";
 import { Navbar } from "@/components/layout/navbar";
 import { ToastProvider } from "@/components/ui/toast";
+import { SSEProvider } from "@/components/ui/sse-provider";
 
 export default function OwnerLayout({
   children,
@@ -16,7 +17,7 @@ export default function OwnerLayout({
   const ownerNav = navMap.owner;
 
   return (
-    <ToastProvider>
+    <ToastProvider><SSEProvider>
       <div className="min-h-screen bg-slate-50 pb-24 lg:pb-0 font-sans text-neutral-900 selection:bg-violet-100 selection:text-violet-900">
         
         {/* Subtle ambient background */}
@@ -61,6 +62,6 @@ export default function OwnerLayout({
           </nav>
         </div>
       </div>
-    </ToastProvider>
+    </SSEProvider></ToastProvider>
   );
 }

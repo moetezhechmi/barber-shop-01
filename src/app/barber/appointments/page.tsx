@@ -1,4 +1,5 @@
-"use client";
+﻿"use client";
+// SSE for real-time appointment updates
 
 import * as React from "react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,6 +14,7 @@ import {
   formatTime,
 } from "@/lib/utils";
 import { CheckCircle, XCircle, CheckCheck } from "lucide-react";
+import { useSSEStore } from "@/store/sse.store";
 
 interface Client {
   id: string;
@@ -58,6 +60,7 @@ export default function BarberAppointmentsPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [activeTab, setActiveTab] = React.useState<TabKey>("ALL");
   const [actionLoading, setActionLoading] = React.useState<string | null>(null);
+  const { addListener } = useSSEStore();
 
   React.useEffect(() => {
     let cancelled = false;
@@ -112,6 +115,20 @@ export default function BarberAppointmentsPage() {
       cancelled = true;
     };
   }, []);
+
+  // Real-time: update status instantly when changed from any source
+  React.useEffect(() => {
+    const remove = addListener((event) => {
+      if (event.type === "appointment_updated") {
+        setAppointments((prev) =>
+          prev.map((a) =>
+            a.id === event.appointmentId ? { ...a, status: event.status } : a
+          )
+        );
+      }
+    });
+    return remove;
+  }, [addListener]);
 
   async function updateStatus(
     appointmentId: string,

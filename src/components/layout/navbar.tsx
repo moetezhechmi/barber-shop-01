@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import Link from "next/link";
@@ -6,15 +6,8 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { LogOut, User, Scissors, Bell, CheckCheck, BellOff } from "lucide-react";
 import { navMap, type NavItem } from "@/components/layout/sidebar";
-
-interface DbNotification {
-  id: string;
-  userId: string;
-  message: string;
-  type: string;
-  isRead: boolean;
-  createdAt: string;
-}
+import { useAuthStore } from "@/store/auth.store";
+import { useNotifStore } from "@/store/notif.store";
 
 function formatRelativeTime(dateStr: string) {
   try {
@@ -22,7 +15,7 @@ function formatRelativeTime(dateStr: string) {
     const past = new Date(dateStr);
     const diffMs = now.getTime() - past.getTime();
     const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return "À l'instant";
+    if (diffMins < 1) return "A l instant";
     if (diffMins < 60) return `Il y a ${diffMins} min`;
     const diffHours = Math.floor(diffMins / 60);
     if (diffHours < 24) return `Il y a ${diffHours} h`;
@@ -34,50 +27,31 @@ function formatRelativeTime(dateStr: string) {
 
 export function Navbar() {
   const router = useRouter();
-  const [user, setUser] = React.useState<{ id: string; name: string; role: string } | null>(null);
+
+  // Auth store
+  const { user, fetchUser, logout } = useAuthStore();
+
+  // Notif store
+  const { notifications, unreadCount, markRead, markAllRead, startPolling } = useNotifStore();
+
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [notificationsOpen, setNotificationsOpen] = React.useState(false);
-  const [notifications, setNotifications] = React.useState<DbNotification[]>([]);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
   const bellRef = React.useRef<HTMLButtonElement>(null);
 
-  const fetchAll = React.useCallback(async () => {
-    try {
-      const meRes = await fetch("/api/auth/me");
-      if (!meRes.ok) { setUser(null); return; }
-      const meData = await meRes.json();
-      setUser(meData?.user ?? null);
-      if (meData?.user) {
-        const notifRes = await fetch("/api/notifications");
-        if (notifRes.ok) {
-          const nd = await notifRes.json();
-          setNotifications(nd.notifications || []);
-        }
-      }
-    } catch {
-      setUser(null);
-    }
-  }, []);
-
+  // Fetch user once on mount
   React.useEffect(() => {
-    fetchAll();
-    const interval = setInterval(async () => {
-      try {
-        const meRes = await fetch("/api/auth/me");
-        if (!meRes.ok) return;
-        const meData = await meRes.json();
-        if (meData?.user) {
-          const notifRes = await fetch("/api/notifications");
-          if (notifRes.ok) {
-            const nd = await notifRes.json();
-            setNotifications(nd.notifications || []);
-          }
-        }
-      } catch { /* silent */ }
-    }, 12000);
-    return () => clearInterval(interval);
-  }, [fetchAll]);
+    fetchUser();
+  }, [fetchUser]);
 
+  // Start notification polling once user is loaded
+  React.useEffect(() => {
+    if (!user) return;
+    const stop = startPolling(12000);
+    return stop;
+  }, [user, startPolling]);
+
+  // Click outside to close dropdowns
   React.useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (
@@ -91,26 +65,14 @@ export function Navbar() {
   }, [notificationsOpen]);
 
   async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    setUser(null);
+    await logout();
     setMenuOpen(false);
     setNotificationsOpen(false);
     router.push("/auth/login");
   }
 
-  async function markAsRead(id: string) {
-    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, isRead: true } : n));
-    await fetch(`/api/notifications/${id}/read`, { method: "PUT" }).catch(() => {});
-  }
-
-  async function markAllAsRead() {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-    await fetch("/api/notifications", { method: "PUT" }).catch(() => {});
-  }
-
   const roleKey = user?.role?.toLowerCase() as keyof typeof navMap;
   const navItems: NavItem[] = roleKey && navMap[roleKey] ? navMap[roleKey] : [];
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-neutral-200 bg-white/90 backdrop-blur-md">
@@ -158,9 +120,9 @@ export function Navbar() {
                   )}
                   aria-label="Notifications"
                 >
-                  <Bell className="h-4.5 w-4.5" />
+                  <Bell className="h-4 w-4" />
                   {unreadCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-violet-600 text-[9px] font-bold text-white ring-2 ring-white">
+                    <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-violet-600 text-[9px] font-bold text-white ring-2 ring-white">
                       {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                   )}
@@ -171,7 +133,6 @@ export function Navbar() {
                     ref={dropdownRef}
                     className="absolute right-0 top-full mt-2 w-80 sm:w-96 origin-top-right rounded-2xl border border-neutral-200 bg-white shadow-lg overflow-hidden z-50"
                   >
-                    {/* Header */}
                     <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100">
                       <div>
                         <p className="text-sm font-semibold text-neutral-900">Notifications</p>
@@ -181,7 +142,7 @@ export function Navbar() {
                       </div>
                       {unreadCount > 0 && (
                         <button
-                          onClick={markAllAsRead}
+                          onClick={markAllRead}
                           className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700 transition-colors"
                         >
                           <CheckCheck className="h-3.5 w-3.5" />
@@ -190,7 +151,6 @@ export function Navbar() {
                       )}
                     </div>
 
-                    {/* List */}
                     <div className="max-h-72 overflow-y-auto divide-y divide-neutral-50">
                       {notifications.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
@@ -198,14 +158,14 @@ export function Navbar() {
                             <BellOff className="h-5 w-5" />
                           </div>
                           <p className="text-sm font-medium text-neutral-700">Aucune notification</p>
-                          <p className="text-xs text-neutral-400 mt-0.5">Les alertes apparaîtront ici</p>
+                          <p className="text-xs text-neutral-400 mt-0.5">Les alertes apparaitront ici</p>
                         </div>
                       ) : (
                         notifications.map((n) => (
                           <div
                             key={n.id}
                             onClick={() => {
-                              markAsRead(n.id);
+                              markRead(n.id);
                               setNotificationsOpen(false);
                               router.push(user.role === "BARBER" ? "/barber/appointments" : "/client/appointments");
                             }}
@@ -268,7 +228,7 @@ export function Navbar() {
                           className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
                         >
                           <LogOut className="h-4 w-4" />
-                          Déconnexion
+                          Deconnexion
                         </button>
                       </div>
                     </div>

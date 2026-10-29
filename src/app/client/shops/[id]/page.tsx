@@ -12,6 +12,8 @@ import { useToast } from "@/components/ui/toast";
 import { Modal } from "@/components/ui/modal";
 import { Spinner } from "@/components/ui/spinner";
 import { formatPrice, formatDate, formatTime } from "@/lib/utils";
+import { useLoyaltyStore } from "@/store/loyalty.store";
+import { useSSEStore } from "@/store/sse.store";
 
 /* ── social SVGs ── */
 const IgIcon = () => (
@@ -82,7 +84,8 @@ export default function ShopDetailPage() {
   const [showDesc, setShowDesc] = React.useState(false);
   const [calMonth, setCalMonth] = React.useState(new Date().getMonth());
   const [calYear, setCalYear] = React.useState(new Date().getFullYear());
-  const [isFreeReady, setIsFreeReady] = React.useState(false);
+  const { isFreeReady, fetchLoyalty } = useLoyaltyStore();
+  const { addListener } = useSSEStore();
 
   const tx0 = React.useRef(0);
   const tabsRef = React.useRef<HTMLDivElement>(null);
@@ -132,6 +135,25 @@ export default function ShopDetailPage() {
     }
   }, []);
 
+  // Fetch loyalty card status on mount
+  React.useEffect(() => { fetchLoyalty(); }, [fetchLoyalty]);
+
+  // Real-time: refresh slots when another client books the same barber+date
+  React.useEffect(() => {
+    const remove = addListener((event) => {
+      if (event.type === "slots_updated" && booking.date) {
+        const relevantBarber =
+          event.barberId === booking.assignedBarberId ||
+          event.barberId === booking.barber;
+        if (relevantBarber) {
+          // Reset time so slots re-fetch automatically
+          setBooking((prev) => ({ ...prev, time: "", assignedBarberId: "" }));
+        }
+      }
+    });
+    return remove;
+  }, [addListener, booking.date, booking.barber, booking.assignedBarberId]);
+
   // Fetch shop data, reviews, and promotions
   React.useEffect(() => {
     if (!params.id) return;
@@ -140,12 +162,12 @@ export default function ShopDetailPage() {
       fetch(`/api/shops/${params.id}`).then(r => r.ok ? r.json() : Promise.reject()),
       fetch(`/api/reviews?shopId=${params.id}`).then(r => r.ok ? r.json() : { reviews: [] }),
       fetch(`/api/shops/${params.id}/promotions`).then(r => r.ok ? r.json() : { promotions: [] }),
-      fetch("/api/loyalty").then(r => r.ok ? r.json() : { isFreeReady: false }),
+      Promise.resolve({ isFreeReady: false }), // loyalty handled by store
     ]).then(([sd, rd, pd, ld]) => { 
       setShop(sd.shop ?? sd); 
       setReviews(rd.reviews || []); 
       setPromotions(pd.promotions || []);
-      setIsFreeReady(ld.isFreeReady === true);
+      // isFreeReady is managed by loyalty store
     })
       .catch(() => setError("Impossible de charger le salon"))
       .finally(() => setLoading(false));
