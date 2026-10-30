@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { Scissors } from "lucide-react";
 
 export function SplashScreen() {
@@ -32,17 +33,15 @@ export function SplashScreen() {
 
       {/* Content */}
       <div className="relative flex flex-col items-center gap-5 animate-splash-in">
-        {/* Logo icon */}
-        <div className="relative flex h-20 w-20 items-center justify-center rounded-[24px] bg-gradient-to-br from-violet-600 to-indigo-600 shadow-2xl shadow-violet-300">
-          {/* Subtle glare */}
-          <div className="absolute inset-0 rounded-[24px] bg-gradient-to-br from-white/20 to-transparent" />
-          <Scissors className="h-9 w-9 text-white" strokeWidth={1.75} />
+        {/* Logo */}
+        <div className="relative h-28 w-28 rounded-2xl overflow-hidden shadow-2xl shadow-violet-300/50">
+          <Image src="/logo.jpg" alt="GUI COIF" fill className="object-cover" priority />
         </div>
 
         {/* Brand name */}
         <div className="flex flex-col items-center gap-1">
           <span className="text-3xl font-bold tracking-tight text-neutral-900">
-            BarberPro
+            GUI COIF
           </span>
           <span className="text-sm text-neutral-400 font-medium tracking-wide">
             Réservation en ligne

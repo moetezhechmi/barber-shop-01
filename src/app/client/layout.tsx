@@ -1,10 +1,11 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ToastProvider, useToast } from "@/components/ui/toast";
 import { MapPin, Calendar, User, LogOut, Bell, Scissors, Tag, ShoppingBag, Plus } from "lucide-react";
+import { AppLogo } from "@/components/ui/app-logo";
 import { useAuthStore } from "@/store/auth.store";
 import { SSEProvider } from "@/components/ui/sse-provider";
 import { useNotifStore } from "@/store/notif.store";
@@ -165,7 +166,7 @@ function PushPrompt() {
             onClick={async () => {
               const p = await Notification.requestPermission();
               setShow(false);
-              if (p === "granted") new Notification("BarberPro", { body: "Notifications activees !" });
+              if (p === "granted") new Notification("GUI COIF", { body: "Notifications activees !" });
             }}
             className="flex-1 rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 py-2 text-sm font-semibold text-white hover:from-violet-500 hover:to-indigo-500 transition-all"
           >
@@ -206,12 +207,7 @@ function ClientLayoutInner({ children }: { children: React.ReactNode }) {
       {/* TOP APP BAR */}
       <header className="sticky top-0 z-40 bg-white border-b border-neutral-100">
         <div className="flex h-14 items-center justify-between px-4 max-w-lg mx-auto">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 shadow-sm">
-              <Scissors className="h-4 w-4 text-white" strokeWidth={2} />
-            </div>
-            <span className="font-bold text-neutral-900 text-base tracking-tight">BarberPro</span>
-          </div>
+          <AppLogo size="sm" showName={true} />
 
           <div className="flex items-center gap-2">
             <NotifBell />

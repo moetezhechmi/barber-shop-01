@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -289,7 +289,7 @@ export default function ShopDetailPage() {
       try {
         await navigator.share({
           title: shop?.name || "Barber Shop",
-          text: `Découvrez ${shop?.name} sur BarberPro !`,
+          text: `Découvrez ${shop?.name} sur GUI COIF !`,
           url: window.location.href,
         });
       } catch {}
@@ -516,7 +516,7 @@ export default function ShopDetailPage() {
                 <span>Appeler</span>
               </a>
             ) : (
-              <span className="text-xs text-gray-500 px-2 font-medium">Salon BarberPro</span>
+              <span className="text-xs text-gray-500 px-2 font-medium">Salon GUI COIF</span>
             )}
             <button
               onClick={() => {

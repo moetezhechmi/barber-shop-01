@@ -97,7 +97,7 @@ export default function ClientPromotionsPage() {
             Bons Plans & Réductions
           </div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight leading-tight">
-            Offres Exclusives BarberPro ✂️
+            Offres Exclusives GUI COIF ✂️
           </h1>
           <p className="mt-1 text-sm text-violet-100/90 leading-relaxed max-w-sm">
             Réservez les meilleures prestations avec réduction immédiate dans notre salon.

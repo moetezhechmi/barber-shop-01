@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { LogOut, User, Scissors, Bell, CheckCheck, BellOff } from "lucide-react";
+import { AppLogo } from "@/components/ui/app-logo";
 import { navMap, type NavItem } from "@/components/layout/sidebar";
 import { useAuthStore } from "@/store/auth.store";
 import { useNotifStore } from "@/store/notif.store";
@@ -81,14 +82,11 @@ export function Navbar() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
 
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5">
-          <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 shadow-sm">
-            <Scissors className="h-4 w-4 text-white" strokeWidth={2} />
-            {user && (
-              <span className={`absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border border-white transition-colors ${sseConnected ? "bg-emerald-400" : "bg-neutral-300"}`} />
-            )}
-          </div>
-          <span className="text-base font-bold text-neutral-900 tracking-tight">BarberPro</span>
+        <Link href="/" className="flex items-center gap-2.5 relative">
+          <AppLogo size="sm" showName={true} />
+          {user && (
+            <span className={`absolute -bottom-0.5 left-6 h-2 w-2 rounded-full border border-white transition-colors z-10 ${sseConnected ? "bg-emerald-400" : "bg-neutral-300"}`} />
+          )}
         </Link>
 
         {/* Desktop nav */}

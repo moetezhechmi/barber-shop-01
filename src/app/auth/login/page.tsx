@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, ArrowRight, ShieldCheck, User, Scissors, Zap } from "lucide-react";
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -78,11 +79,11 @@ export default function LoginPage() {
 
         {/* Brand header — outside card */}
         <div className="mb-8 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 shadow-lg shadow-violet-200 mb-4">
-            <Scissors className="h-8 w-8 text-white" strokeWidth={1.75} />
+          <div className="relative inline-flex w-20 h-20 rounded-2xl overflow-hidden shadow-lg shadow-violet-200 mb-4">
+            <Image src="/logo.jpg" alt="GUI COIF" fill className="object-cover" priority />
           </div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Bon retour 👋</h1>
-          <p className="mt-1 text-sm text-slate-500">Connectez-vous à votre compte BarberPro</p>
+          <p className="mt-1 text-sm text-slate-500">Connectez-vous à votre compte GUI COIF</p>
         </div>
 
         {/* Card */}

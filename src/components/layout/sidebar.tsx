@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { AppLogo } from "@/components/ui/app-logo";
 import {
   LayoutDashboard,
   Store,
@@ -59,11 +60,8 @@ export function Sidebar({ userRole = "client" }: SidebarProps) {
   return (
     <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 border-r border-neutral-200 bg-white">
       {/* Brand */}
-      <div className="flex h-16 items-center gap-2.5 px-5 border-b border-neutral-100">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 shadow-sm">
-          <Scissors className="h-4 w-4 text-white" strokeWidth={2} />
-        </div>
-        <span className="text-base font-bold text-neutral-900 tracking-tight">BarberPro</span>
+      <div className="flex h-16 items-center px-5 border-b border-neutral-100">
+        <AppLogo size="sm" showName={true} />
       </div>
 
       {/* Nav */}

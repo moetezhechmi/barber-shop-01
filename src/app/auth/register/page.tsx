@@ -102,7 +102,7 @@ export default function RegisterPage() {
             <Scissors className="h-8 w-8 text-white" strokeWidth={1.75} />
           </div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Créer un compte</h1>
-          <p className="mt-1 text-sm text-slate-500">Rejoignez BarberPro en quelques secondes</p>
+          <p className="mt-1 text-sm text-slate-500">Rejoignez GUI COIF en quelques secondes</p>
         </div>
 
         {/* Card */}

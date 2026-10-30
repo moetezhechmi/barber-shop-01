@@ -14,12 +14,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BarberPro - Réservation",
+  title: "GUI COIF - Réservation",
   description: "Réservez votre créneau en ligne",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "BarberPro",
+    title: "GUI COIF",
   },
 };
 
