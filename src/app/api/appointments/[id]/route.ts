@@ -7,7 +7,6 @@ const updateSchema = z.object({
   date: z.string().optional(),
   startTime: z.string().optional(),
   notes: z.string().optional(),
-  status: z.enum(["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED"]).optional(),
 });
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -74,6 +73,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     const body = await req.json();
+
+    // Security check: Disallow direct status alteration through this general endpoint
+    if ("status" in body) {
+      return NextResponse.json(
+        { error: "Le changement de statut doit être effectué exclusivement via /api/appointments/[id]/status" },
+        { status: 400 }
+      );
+    }
+
     const parsed = updateSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
@@ -83,7 +91,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (parsed.data.date) data.date = parsed.data.date;
     if (parsed.data.startTime) data.startTime = parsed.data.startTime;
     if (parsed.data.notes !== undefined) data.notes = parsed.data.notes;
-    if (parsed.data.status) data.status = parsed.data.status;
 
     const updated = await prisma.appointment.update({
       where: { id },

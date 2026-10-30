@@ -21,6 +21,22 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     const { id } = await params;
+
+    // BOLA check: Ensure product exists and belongs to the owner's shop
+    const existing = await prisma.product.findUnique({
+      where: { id },
+      include: { shop: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Produit introuvable" }, { status: 404 });
+    }
+    if (existing.shop.ownerId !== user.id) {
+      return NextResponse.json(
+        { error: "Accès refusé. Ce produit n'appartient pas à votre salon." },
+        { status: 403 }
+      );
+    }
+
     const body = await req.json();
     const parsed = updateSchema.safeParse(body);
     if (!parsed.success) {
@@ -46,6 +62,22 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     }
 
     const { id } = await params;
+
+    // BOLA check: Ensure product exists and belongs to the owner's shop
+    const existing = await prisma.product.findUnique({
+      where: { id },
+      include: { shop: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Produit introuvable" }, { status: 404 });
+    }
+    if (existing.shop.ownerId !== user.id) {
+      return NextResponse.json(
+        { error: "Accès refusé. Ce produit n'appartient pas à votre salon." },
+        { status: 403 }
+      );
+    }
+
     await prisma.product.delete({ where: { id } });
 
     return NextResponse.json({ success: true });

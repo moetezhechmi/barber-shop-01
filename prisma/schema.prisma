@@ -24,6 +24,8 @@ model User {
   notifications Notification[]
   orders        Order[]
   loyaltyCard   LoyaltyCard?
+
+  @@index([role])
 }
 
 model Shop {
@@ -52,6 +54,9 @@ model Shop {
   promotions   Promotion[]
   products     Product[]
   orders       Order[]
+
+  @@index([ownerId])
+  @@index([isAvailable])
 }
 
 model Barber {
@@ -69,6 +74,9 @@ model Barber {
   appointments Appointment[]
   reviews      Review[]
   gallery      GalleryImage[]
+
+  @@index([userId])
+  @@index([shopId])
 }
 
 model Service {
@@ -82,6 +90,8 @@ model Service {
 
   shop         Shop          @relation(fields: [shopId], references: [id])
   appointments Appointment[]
+
+  @@index([shopId])
 }
 
 model WorkingHours {
@@ -95,6 +105,10 @@ model WorkingHours {
 
   barber Barber? @relation(fields: [barberId], references: [id])
   shop   Shop?   @relation(fields: [shopId], references: [id])
+
+  @@index([shopId])
+  @@index([barberId])
+  @@index([dayOfWeek])
 }
 
 model TimeSlot {
@@ -106,6 +120,10 @@ model TimeSlot {
   isBooked  Boolean @default(false)
 
   barber Barber @relation(fields: [barberId], references: [id])
+
+  @@index([barberId])
+  @@index([date])
+  @@index([isBooked])
 }
 
 model Appointment {
@@ -126,6 +144,13 @@ model Appointment {
   shop    Shop    @relation(fields: [shopId], references: [id])
   service Service @relation(fields: [serviceId], references: [id])
   review  Review?
+
+  @@index([clientId])
+  @@index([barberId])
+  @@index([shopId])
+  @@index([serviceId])
+  @@index([date])
+  @@index([status])
 }
 
 model Review {
@@ -142,6 +167,10 @@ model Review {
   barber      Barber      @relation(fields: [barberId], references: [id])
   shop        Shop        @relation(fields: [shopId], references: [id])
   appointment Appointment @relation(fields: [appointmentId], references: [id])
+
+  @@index([clientId])
+  @@index([barberId])
+  @@index([shopId])
 }
 
 model GalleryImage {
@@ -152,6 +181,8 @@ model GalleryImage {
   createdAt DateTime @default(now())
 
   barber Barber @relation(fields: [barberId], references: [id])
+
+  @@index([barberId])
 }
 
 model Notification {
@@ -163,6 +194,9 @@ model Notification {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([isRead])
 }
 
 model Promotion {
@@ -178,6 +212,9 @@ model Promotion {
   createdAt   DateTime @default(now())
 
   shop Shop @relation(fields: [shopId], references: [id])
+
+  @@index([shopId])
+  @@index([isActive])
 }
 
 model Product {
@@ -194,6 +231,10 @@ model Product {
 
   shop       Shop        @relation(fields: [shopId], references: [id])
   orderItems OrderItem[]
+
+  @@index([shopId])
+  @@index([isAvailable])
+  @@index([category])
 }
 
 model Order {
@@ -208,6 +249,10 @@ model Order {
   shop   Shop        @relation(fields: [shopId], references: [id])
   client User        @relation(fields: [clientId], references: [id])
   items  OrderItem[]
+
+  @@index([shopId])
+  @@index([clientId])
+  @@index([status])
 }
 
 model OrderItem {

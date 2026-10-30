@@ -15,7 +15,7 @@ export async function DELETE(
     const { id } = await params;
     const image = await prisma.galleryImage.findUnique({
       where: { id },
-      include: { barber: true },
+      include: { barber: { include: { shop: true } } },
     });
     if (!image) {
       return NextResponse.json(
@@ -23,7 +23,12 @@ export async function DELETE(
         { status: 404 }
       );
     }
-    if (image.barber.userId !== user.id && user.role !== "OWNER") {
+
+    // BOLA check: only the barber who uploaded the image or the owner of that barber's shop can delete it
+    const isBarber = image.barber.userId === user.id;
+    const isOwner = user.role === "OWNER" && image.barber.shop?.ownerId === user.id;
+
+    if (!isBarber && !isOwner) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

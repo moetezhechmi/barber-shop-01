@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, ArrowRight, Scissors, Briefcase, Store, Check } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, Scissors, Store, Check, KeyRound } from "lucide-react";
 
 const ROLES = [
   {
@@ -30,6 +30,7 @@ export default function RegisterPage() {
   const [password, setPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [role, setRole] = React.useState<"CLIENT" | "OWNER">("CLIENT");
+  const [ownerSecret, setOwnerSecret] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -70,13 +71,24 @@ export default function RegisterPage() {
       setError("Le mot de passe doit contenir au moins 6 caractères");
       return;
     }
+    if (role === "OWNER" && !ownerSecret.trim()) {
+      setError("Le code d'activation gérant est obligatoire");
+      return;
+    }
 
     setLoading(true);
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, phone: phone || undefined, password, role }),
+        body: JSON.stringify({
+          name,
+          email,
+          phone: phone || undefined,
+          password,
+          role,
+          ownerSecret: role === "OWNER" ? ownerSecret.trim() : undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur lors de l'inscription");
@@ -160,6 +172,30 @@ export default function RegisterPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Owner Activation Code (Required only if Gérant is selected) */}
+            {role === "OWNER" && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 space-y-2">
+                <div className="flex items-center gap-1.5 text-amber-900">
+                  <KeyRound className="h-4 w-4 text-amber-600" />
+                  <label htmlFor="ownerSecret" className="block text-xs font-bold uppercase tracking-wider">
+                    Code d&apos;activation Gérant <span className="text-red-500">*</span>
+                  </label>
+                </div>
+                <input
+                  id="ownerSecret"
+                  type="password"
+                  value={ownerSecret}
+                  onChange={(e) => setOwnerSecret(e.target.value)}
+                  placeholder="Entrez votre clé de licence gérant"
+                  required
+                  className="w-full rounded-lg border border-amber-300 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
+                />
+                <p className="text-[11px] text-amber-700 leading-snug">
+                  Clé confidentielle fournie au propriétaire du salon pour initialiser l&apos;administration.
+                </p>
+              </div>
+            )}
+
             {/* Name */}
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -204,7 +240,7 @@ export default function RegisterPage() {
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="+33 6 00 00 00 00"
+                placeholder="+216 00 000 000"
                 autoComplete="tel"
                 className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-3 focus:ring-violet-100"
               />

@@ -3,6 +3,7 @@
 export type SSEEvent =
   | { type: "appointment_updated"; appointmentId: string; status: string; date: string; barberId: string }
   | { type: "slots_updated"; barberId: string; date: string }
+  | { type: "notification"; notification: any }
   | { type: "connected"; userId: string };
 
 interface SSEState {
@@ -49,6 +50,16 @@ export const useSSEStore = create<SSEState>((set, get) => ({
       try {
         const data = JSON.parse(e.data);
         dispatch({ type: "slots_updated", ...data });
+      } catch {}
+    });
+
+    es.addEventListener("notification", (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        dispatch({ type: "notification", ...data });
+        import("@/store/notif.store").then(({ useNotifStore }) => {
+          useNotifStore.getState().fetchNotifications();
+        });
       } catch {}
     });
 

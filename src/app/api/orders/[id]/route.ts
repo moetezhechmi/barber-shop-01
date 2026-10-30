@@ -15,6 +15,22 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     const { id } = await params;
+
+    // BOLA check: Ensure order exists and belongs to the owner's shop
+    const existingOrder = await prisma.order.findUnique({
+      where: { id },
+      include: { shop: true },
+    });
+    if (!existingOrder) {
+      return NextResponse.json({ error: "Commande introuvable" }, { status: 404 });
+    }
+    if (existingOrder.shop.ownerId !== user.id) {
+      return NextResponse.json(
+        { error: "Accès refusé. Cette commande n'appartient pas à votre salon." },
+        { status: 403 }
+      );
+    }
+
     const body = await req.json();
     const parsed = statusSchema.safeParse(body);
     if (!parsed.success) {

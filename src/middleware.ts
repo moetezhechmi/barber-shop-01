@@ -1,17 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { jwtVerify } from "jose";
 
-function parseJwtCookie(tokenStr: string): { userId?: string; email?: string; role?: string; exp?: number } | null {
+const JWT_SECRET = process.env.JWT_SECRET || process.env.AUTH_SECRET || "fallback-secret";
+const SECRET_KEY = new TextEncoder().encode(JWT_SECRET);
+
+interface VerifiedJwtPayload {
+  userId?: string;
+  email?: string;
+  role?: string;
+  exp?: number;
+}
+
+/**
+ * Cryptographically verifies custom JWT token against HMAC SHA-256 secret.
+ * Rejects expired, tampered, forged or unsigned tokens.
+ */
+async function verifyCustomJwt(tokenStr: string): Promise<VerifiedJwtPayload | null> {
   try {
-    const parts = tokenStr.split(".");
-    if (parts.length !== 3) return null;
-    const payloadJson = Buffer.from(parts[1], "base64url").toString("utf-8");
-    const payload = JSON.parse(payloadJson);
-    if (payload.exp && Date.now() >= payload.exp * 1000) {
-      return null; // Expired
-    }
-    return payload;
+    const { payload } = await jwtVerify(tokenStr, SECRET_KEY, {
+      algorithms: ["HS256"],
+    });
+
+    return payload as VerifiedJwtPayload;
   } catch {
+    // Signature verification failed, token expired, or invalid format
     return null;
   }
 }
@@ -28,18 +41,21 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 1. Check custom JWT token from cookie
+  // 1. Check custom JWT token from cookie with CRYPTOGRAPHIC verification
   const tokenCookie = req.cookies.get("token")?.value;
   let userRole: string | null = null;
+  let isTokenTamperedOrInvalid = false;
 
   if (tokenCookie) {
-    const decoded = parseJwtCookie(tokenCookie);
-    if (decoded?.role) {
-      userRole = decoded.role;
+    const verifiedPayload = await verifyCustomJwt(tokenCookie);
+    if (verifiedPayload?.role) {
+      userRole = verifiedPayload.role;
+    } else {
+      isTokenTamperedOrInvalid = true;
     }
   }
 
-  // 2. Check NextAuth (Google Auth) session token if no custom token
+  // 2. Check NextAuth (Google Auth) session token if no valid custom token
   if (!userRole) {
     try {
       const nextAuthToken = await getToken({
@@ -50,15 +66,22 @@ export async function middleware(req: NextRequest) {
         userRole = nextAuthToken.role as string;
       }
     } catch {
-      // Ignore
+      // Ignore NextAuth decryption failure
     }
   }
 
-  // If not logged in at all
+  // If not logged in or token is invalid/tampered
   if (!userRole) {
     const loginUrl = new URL("/auth/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
-    return NextResponse.redirect(loginUrl);
+    const redirectResponse = NextResponse.redirect(loginUrl);
+
+    // If an invalid or forged token cookie was detected, purge it immediately
+    if (isTokenTamperedOrInvalid) {
+      redirectResponse.cookies.delete("token");
+    }
+
+    return redirectResponse;
   }
 
   // Role-based authorization rules

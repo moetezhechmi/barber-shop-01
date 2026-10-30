@@ -138,7 +138,7 @@ export default function OwnerAppointmentsPage() {
 
   const handleUpdateStatus = async (appointmentId: string, status: string) => {
     try {
-      const res = await fetch(`/api/appointments/${appointmentId}`, {
+      const res = await fetch(`/api/appointments/${appointmentId}/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),

@@ -83,6 +83,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!service) {
       return NextResponse.json({ error: "Service not found" }, { status: 404 });
     }
+    if (service.shopId !== parsed.data.shopId) {
+      return NextResponse.json({ error: "Service does not belong to this shop" }, { status: 400 });
+    }
+
+    const barber = await prisma.barber.findUnique({ where: { id } });
+    if (!barber || barber.shopId !== parsed.data.shopId) {
+      return NextResponse.json({ error: "Barber does not belong to this shop" }, { status: 400 });
+    }
 
     const [startHour, startMin] = parsed.data.startTime.split(":").map(Number);
     const totalMinutes = startHour * 60 + startMin + service.duration;
@@ -92,7 +100,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const appointment = await prisma.appointment.create({
       data: {
-        clientId: parsed.data.clientId,
+        clientId: user.id,
         barberId: id,
         shopId: parsed.data.shopId,
         serviceId: parsed.data.serviceId,

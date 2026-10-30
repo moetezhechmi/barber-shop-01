@@ -3,6 +3,7 @@ import { z } from "zod";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { comparePassword, signToken } from "@/lib/auth";
+import { rateLimit } from "@/lib/ratelimit";
 
 const schema = z.object({
   email: z.string().email(),
@@ -10,6 +11,8 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, "login", 5, 15 * 60 * 1000);
+  if (limited) return limited;
   try {
     const body = await req.json();
     const parsed = schema.safeParse(body);

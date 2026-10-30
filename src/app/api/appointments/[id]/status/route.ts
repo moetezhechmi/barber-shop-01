@@ -61,41 +61,43 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     // Send database notifications automatically
     if (status === "CONFIRMED") {
-      await prisma.notification.create({
+      const notif = await prisma.notification.create({
         data: {
           userId: appointment.clientId,
           message: `Votre rendez-vous du ${appointment.date} à ${appointment.startTime} (${updated.service.name}) a été accepté ! 🎉`,
           type: "APPOINTMENT_ACCEPTED",
         },
       });
+      broadcastToUser(appointment.clientId, "notification", { notification: notif });
     } else if (status === "CANCELLED") {
       if (user.id === appointment.clientId) {
-        // Client cancelled, notify barber
-        await prisma.notification.create({
+        const notif = await prisma.notification.create({
           data: {
             userId: appointment.barber.userId,
             message: `Le rendez-vous de ${user.name || user.email || "Client"} du ${appointment.date} à ${appointment.startTime} a été annulé par le client.`,
             type: "APPOINTMENT_CANCELLED",
           },
         });
+        broadcastToUser(appointment.barber.userId, "notification", { notification: notif });
       } else {
-        // Barber or Owner cancelled, notify client
-        await prisma.notification.create({
+        const notif = await prisma.notification.create({
           data: {
             userId: appointment.clientId,
             message: `Votre rendez-vous du ${appointment.date} à ${appointment.startTime} (${updated.service.name}) a été annulé par l'établissement.`,
             type: "APPOINTMENT_CANCELLED",
           },
         });
+        broadcastToUser(appointment.clientId, "notification", { notification: notif });
       }
     } else if (status === "COMPLETED") {
-      await prisma.notification.create({
+      const notif = await prisma.notification.create({
         data: {
           userId: appointment.clientId,
           message: `Votre rendez-vous du ${appointment.date} à ${appointment.startTime} (${updated.service.name}) est terminé. Merci pour votre visite ! N'hésitez pas à laisser un avis.`,
           type: "APPOINTMENT_COMPLETED",
         },
       });
+      broadcastToUser(appointment.clientId, "notification", { notification: notif });
 
       // ── Loyalty card ──
       try {

@@ -40,6 +40,7 @@ export async function POST(
     const { id } = await params;
     const barber = await prisma.barber.findUnique({
       where: { id },
+      include: { shop: true },
     });
     if (!barber) {
       return NextResponse.json(
@@ -47,7 +48,11 @@ export async function POST(
         { status: 404 }
       );
     }
-    if (barber.userId !== user.id && user.role !== "OWNER") {
+
+    const isBarber = barber.userId === user.id;
+    const isOwner = user.role === "OWNER" && barber.shop?.ownerId === user.id;
+
+    if (!isBarber && !isOwner) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

@@ -54,9 +54,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const isOwner = barber.shop?.ownerId === user.id;
     const isBarber = barber.userId === user.id;
-    if (!isOwner && !isBarber) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+
     if (!isOwner && !isBarber) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -65,6 +63,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const parsed = updateSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    }
+
+    // Security check: Only the salon owner can approve or revoke approval of a barber
+    if (parsed.data.isApproved !== undefined && !isOwner) {
+      return NextResponse.json(
+        { error: "Seul le gérant du salon est autorisé à approuver ou modifier le statut d'approbation d'un barbier." },
+        { status: 403 }
+      );
     }
 
     const updated = await prisma.barber.update({

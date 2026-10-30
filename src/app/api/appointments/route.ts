@@ -110,11 +110,23 @@ export async function POST(req: NextRequest) {
     if (!service) {
       return NextResponse.json({ error: "Service not found" }, { status: 404 });
     }
+    if (service.shopId !== parsed.data.shopId) {
+      return NextResponse.json({ error: "Service does not belong to this shop" }, { status: 400 });
+    }
+
+    const barber = await prisma.barber.findUnique({ where: { id: parsed.data.barberId } });
+    if (!barber) {
+      return NextResponse.json({ error: "Barber not found" }, { status: 404 });
+    }
+    if (barber.shopId !== parsed.data.shopId) {
+      return NextResponse.json({ error: "Barber does not belong to this shop" }, { status: 400 });
+    }
 
     const [startHour, startMin] = parsed.data.startTime.split(":").map(Number);
-    const totalMinutes = startHour * 60 + startMin + service.duration;
-    const endHour = Math.floor(totalMinutes / 60);
-    const endMin = totalMinutes % 60;
+    const slotStart = startHour * 60 + startMin;
+    const slotEnd = slotStart + service.duration;
+    const endHour = Math.floor(slotEnd / 60);
+    const endMin = slotEnd % 60;
     const endTime = `${String(endHour).padStart(2, "0")}:${String(endMin).padStart(2, "0")}`;
 
     // Check if client has a full loyalty card (free appointment)
@@ -127,19 +139,52 @@ export async function POST(req: NextRequest) {
     const loyaltyNote = isFreeAppointment ? "[GRATUIT - Carte de fidelite]" : "";
     const finalNotes = [loyaltyNote, parsed.data.notes].filter(Boolean).join(" | ") || undefined;
 
-    // Atomic transaction: check slot + create to prevent race conditions
+    // Atomic transaction: verify slot interval overlap + blocked slots + create
     let appointment;
     try {
-      appointment = await prisma.$transaction(async (tx) => {
-        const conflict = await tx.appointment.findFirst({
+      appointment = await prisma.$transaction(
+      async (tx) => {
+        // 1. Fetch active appointments for the barber on that date
+        const existingAppointments = await tx.appointment.findMany({
           where: {
             barberId: parsed.data.barberId,
             date: parsed.data.date,
-            startTime: parsed.data.startTime,
             status: { in: ["PENDING", "CONFIRMED"] },
           },
+          select: { startTime: true, endTime: true },
         });
-        if (conflict) throw new Error("SLOT_TAKEN");
+
+        // 2. Fetch blocked slots for the barber on that date
+        const blockedSlots = await tx.timeSlot.findMany({
+          where: {
+            barberId: parsed.data.barberId,
+            date: parsed.data.date,
+            isBooked: true,
+          },
+          select: { startTime: true, endTime: true },
+        });
+
+        // 3. Check for any overlapping busy interval: slotStart < busyEnd && slotEnd > busyStart
+        const bookedRanges = [
+          ...existingAppointments.map((a) => {
+            const [sH, sM] = a.startTime.split(":").map(Number);
+            const [eH, eM] = a.endTime.split(":").map(Number);
+            return { start: sH * 60 + sM, end: eH * 60 + eM };
+          }),
+          ...blockedSlots.map((ts) => {
+            const [sH, sM] = ts.startTime.split(":").map(Number);
+            const [eH, eM] = ts.endTime.split(":").map(Number);
+            return { start: sH * 60 + sM, end: eH * 60 + eM };
+          }),
+        ];
+
+        const hasConflict = bookedRanges.some(
+          (b) => slotStart < b.end && slotEnd > b.start
+        );
+
+        if (hasConflict) {
+          throw new Error("SLOT_TAKEN");
+        }
 
         return tx.appointment.create({
           data: {
@@ -158,11 +203,13 @@ export async function POST(req: NextRequest) {
             barber: { include: { user: { select: { id: true, name: true } } } },
           },
         });
-      });
+      },
+      { isolationLevel: "Serializable" }
+    );
     } catch (txError) {
       if (txError instanceof Error && txError.message === "SLOT_TAKEN") {
         return NextResponse.json(
-          { error: "Ce cr\u00e9neau est d\u00e9j\u00e0 pris. Choisissez un autre horaire." },
+          { error: "Ce créneau horaire chevauche un rendez-vous existant ou une indisponibilité. Veuillez choisir un autre horaire." },
           { status: 409 }
         );
       }
