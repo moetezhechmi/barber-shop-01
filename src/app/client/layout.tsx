@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ToastProvider, useToast } from "@/components/ui/toast";
 import { MapPin, Calendar, User, LogOut, Bell, Scissors, Tag, ShoppingBag, Plus } from "lucide-react";
 import { AppLogo } from "@/components/ui/app-logo";
+import { Modal } from "@/components/ui/modal";
 import { useAuthStore } from "@/store/auth.store";
 import { SSEProvider } from "@/components/ui/sse-provider";
 import { useNotifStore } from "@/store/notif.store";
@@ -38,11 +39,14 @@ function chime() {
 function NotifBell() {
   const router = useRouter();
   const { toast } = useToast();
-  const { notifications, unreadCount, markRead, startPolling } = useNotifStore();
+  const { notifications, unreadCount, markRead, markAllRead, startPolling, fetchCount } = useNotifStore();
   const [open, setOpen] = React.useState(false);
+  const [selectedApt, setSelectedApt] = React.useState<any>(null);
+  const [loadingApt, setLoadingApt] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
   const seen = React.useRef(new Set<string>());
-  const first = React.useRef(true);
+  const primed = React.useRef(false);
+  const lastFetch = React.useRef(0);
 
   // Start polling + toast new notifications with chime
   React.useEffect(() => {
@@ -50,23 +54,27 @@ function NotifBell() {
     return stop;
   }, [startPolling]);
 
-  // Detect new notifications and chime
+  // Detect new notifications and chime (skip initial fetch)
   React.useEffect(() => {
-    if (first.current) {
+    if (fetchCount === 0 || fetchCount === lastFetch.current) return;
+    lastFetch.current = fetchCount;
+    if (!primed.current) {
       notifications.forEach((n) => seen.current.add(n.id));
-      first.current = false;
+      primed.current = true;
       return;
     }
     let hasNew = false;
     notifications.forEach((n) => {
       if (!seen.current.has(n.id)) {
         seen.current.add(n.id);
-        hasNew = true;
-        toast(n.message, n.type === "PROMOTION" ? "success" : "info");
+        if (!n.isRead) {
+          hasNew = true;
+          toast(n.message, n.type === "PROMOTION" ? "success" : "info");
+        }
       }
     });
     if (hasNew) chime();
-  }, [notifications, toast]);
+  }, [fetchCount, notifications, toast]);
 
   React.useEffect(() => {
     const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
@@ -85,6 +93,22 @@ function NotifBell() {
         )}
       </button>
 
+      {(loadingApt || selectedApt) && (
+        <Modal isOpen={true} onClose={() => { setSelectedApt(null); setLoadingApt(false); }} title="Détails du rendez-vous">
+          {loadingApt ? (
+            <p className="text-sm text-gray-500">Chargement...</p>
+          ) : (
+            <div className="space-y-3 text-sm">
+              <p className="font-bold text-gray-900">{selectedApt?.shop?.name}</p>
+              <p className="text-gray-600">{selectedApt?.service?.name}</p>
+              <p className="text-gray-600">{selectedApt?.barber?.user?.name}</p>
+              <p className="text-gray-600">{selectedApt?.date} · {selectedApt?.startTime}</p>
+              <p className="text-gray-600">{selectedApt?.service?.price?.toFixed(2)} DT</p>
+              <p className="text-xs font-bold text-violet-600">{selectedApt?.status}</p>
+            </div>
+          )}
+        </Modal>
+      )}
       {open && (
         <div className="absolute right-0 top-full mt-2 w-80 origin-top-right bg-white rounded-2xl shadow-lg border border-neutral-200 overflow-hidden z-50">
           <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100">
@@ -93,6 +117,14 @@ function NotifBell() {
               <span className="text-xs font-semibold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">
                 {unreadCount} non lu{unreadCount > 1 ? "es" : "e"}
               </span>
+            )}
+            {unreadCount > 0 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); markAllRead(); }}
+                className="text-xs font-semibold text-neutral-500 hover:text-violet-600 transition-colors"
+              >
+                Tout marquer lu
+              </button>
             )}
           </div>
           <div className="max-h-72 overflow-y-auto divide-y divide-neutral-50">
@@ -105,14 +137,29 @@ function NotifBell() {
               notifications.map(n => (
                 <div
                   key={n.id}
-                  onClick={() => {
+                  onClick={async () => {
                     if (!n.isRead) markRead(n.id);
                     setOpen(false);
-                    router.push(
-                      n.type === "PROMOTION" || n.message?.toLowerCase().includes("offre")
-                        ? "/client/promotions"
-                        : "/client/appointments"
-                    );
+                    if (n.appointmentId) {
+                      setLoadingApt(true);
+                      try {
+                        const res = await fetch(`/api/appointments/${n.appointmentId}`);
+                        if (res.ok) {
+                          const data = await res.json();
+                          setSelectedApt(data.appointment);
+                        } else {
+                          toast("Impossible de charger le rendez-vous", "error");
+                        }
+                      } catch {
+                        toast("Impossible de charger le rendez-vous", "error");
+                      } finally {
+                        setLoadingApt(false);
+                      }
+                    } else if (n.type === "PROMOTION" || n.message?.toLowerCase().includes("offre")) {
+                      router.push("/client/promotions");
+                    } else {
+                      router.push("/client/appointments");
+                    }
                   }}
                   className={`flex gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-neutral-50 ${n.isRead ? "bg-white" : "bg-violet-50/40"}`}
                 >
@@ -205,7 +252,7 @@ function ClientLayoutInner({ children }: { children: React.ReactNode }) {
     <div className="min-h-dvh bg-slate-50 font-sans" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
 
       {/* TOP APP BAR */}
-      <header className="sticky top-0 z-40 bg-white border-b border-neutral-100">
+      <header className="sticky top-0 z-40 bg-white border-b border-neutral-100" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
         <div className="flex h-14 items-center justify-between px-4 max-w-lg mx-auto">
           <AppLogo size="sm" showName={true} />
 
@@ -253,7 +300,7 @@ function ClientLayoutInner({ children }: { children: React.ReactNode }) {
       {/* Float button - hidden on shop page */}
       {!pathname.startsWith("/client/shops/") && (
         <Link
-          href="/client/search"
+          href="/client/shops/cmpeohqiw000004l24pc6wjx0#booking-tabs"
           className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+72px)] right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-300 transition-all hover:shadow-xl active:scale-95"
           aria-label="Prendre un rendez-vous"
         >

@@ -39,7 +39,7 @@ export default function AppointmentsPage() {
   const { toast } = useToast();
   const [appointments, setAppointments] = React.useState<Appointment[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [tab, setTab] = React.useState("");
+  const [tab, setTab] = React.useState(() => (typeof window !== "undefined" && window.location.hash ? "" : ""));
   const [reviewModal, setReviewModal] = React.useState(false);
   const [reviewApt, setReviewApt] = React.useState<Appointment | null>(null);
   const [rating, setRating] = React.useState(0);
@@ -98,7 +98,7 @@ export default function AppointmentsPage() {
         body: JSON.stringify({ status: "CANCELLED" }),
       });
       if (!res.ok) throw new Error();
-      toast("Rendez-vous annulÃ©", "success");
+      toast("Rendez-vous annulé", "success");
       fetch();
     } catch {
       toast("Erreur", "error");
@@ -206,7 +206,7 @@ export default function AppointmentsPage() {
           <div className="bg-white rounded-2xl p-12 text-center shadow-sm">
             <Calendar className="h-12 w-12 text-gray-200 mx-auto mb-3" />
             <p className="font-bold text-gray-900">Aucun rendez-vous</p>
-            <p className="text-xs text-gray-400 mt-1">RÃ©servez votre prochaine coupe !</p>
+            <p className="text-xs text-gray-400 mt-1">Réservez votre prochaine coupe !</p>
           </div>
         ) : (
           filtered.map(apt => {
@@ -215,12 +215,12 @@ export default function AppointmentsPage() {
             const canReview = apt.status === "COMPLETED" && !apt.review;
             
             return (
-              <div key={apt.id} className="bg-white rounded-2xl p-4 shadow-sm">
+              <div key={apt.id} id={`apt-${apt.id}`} className="bg-white rounded-2xl p-4 shadow-sm">
                 {/* Status badge */}
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-gray-900 text-sm truncate">{apt.shop.name}</h3>
-                    <p className="text-xs text-gray-400 truncate">{apt.shop.address || "â€”"}</p>
+                    <p className="text-xs text-gray-400 truncate">{apt.shop.address || "—"}</p>
                   </div>
                   <span className={`shrink-0 px-2 py-1 rounded-lg text-[10px] font-bold ${
                     apt.status === "CONFIRMED" ? "bg-blue-50 text-blue-600" :
@@ -289,7 +289,7 @@ export default function AppointmentsPage() {
                   {apt.review && (
                     <div className="flex-1 rounded-xl bg-green-50 border border-green-100 py-2.5 text-xs font-bold text-green-600 flex items-center justify-center gap-1.5">
                       <CheckCircle className="h-3.5 w-3.5" />
-                      Avis publiÃ©
+                      Avis publié
                     </div>
                   )}
                 </div>
@@ -305,7 +305,7 @@ export default function AppointmentsPage() {
           {reviewApt && (
             <div className="bg-violet-50 rounded-2xl p-4 border border-violet-100">
               <p className="font-bold text-gray-900 text-sm">{reviewApt.shop.name}</p>
-              <p className="text-xs text-gray-500 mt-1">{reviewApt.service.name} Â· {reviewApt.barber.user.name}</p>
+              <p className="text-xs text-gray-500 mt-1">{reviewApt.service.name} · {reviewApt.barber.user.name}</p>
             </div>
           )}
 
@@ -325,7 +325,7 @@ export default function AppointmentsPage() {
             <p className="text-xs font-bold text-gray-500 mb-2">Commentaire (optionnel)</p>
             <textarea value={comment} onChange={e => setComment(e.target.value)} rows={3}
               className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:border-violet-500 focus:outline-none resize-none"
-              placeholder="Votre expÃ©rience..." />
+              placeholder="Votre expérience..." />
           </div>
 
           <button onClick={submitReview} disabled={submitting || rating === 0}

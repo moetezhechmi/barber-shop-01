@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { LogOut, User, Scissors, Bell, CheckCheck, BellOff } from "lucide-react";
 import { AppLogo } from "@/components/ui/app-logo";
+import { Modal } from "@/components/ui/modal";
 import { navMap, type NavItem } from "@/components/layout/sidebar";
 import { useAuthStore } from "@/store/auth.store";
 import { useNotifStore } from "@/store/notif.store";
@@ -39,6 +40,19 @@ export function Navbar() {
 
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [notificationsOpen, setNotificationsOpen] = React.useState(false);
+  const [selectedApt, setSelectedApt] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(false);
+
+  const setSelectedAptDefault = () => {
+    setSelectedApt({
+      shop: { name: "Salon" },
+      service: { name: "Prestation", price: 0 },
+      barber: { user: { name: "Coiffeur" } },
+      date: new Date().toLocaleDateString("fr-FR"),
+      startTime: "--:00",
+      status: "CONFIRMÉ"
+    });
+  };
   const dropdownRef = React.useRef<HTMLDivElement>(null);
   const bellRef = React.useRef<HTMLButtonElement>(null);
 
@@ -77,7 +91,7 @@ export function Navbar() {
   const roleKey = user?.role?.toLowerCase() as keyof typeof navMap;
   const navItems: NavItem[] = roleKey && navMap[roleKey] ? navMap[roleKey] : [];
 
-  return (
+  return (<>
     <header className="sticky top-0 z-40 w-full border-b border-neutral-200 bg-white/90 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
 
@@ -167,10 +181,27 @@ export function Navbar() {
                         notifications.map((n) => (
                           <div
                             key={n.id}
-                            onClick={() => {
+                            onClick={async () => {
                               markRead(n.id);
                               setNotificationsOpen(false);
-                              router.push(user.role === "BARBER" ? "/barber/appointments" : "/client/appointments");
+                              if (n.appointmentId) {
+                                setLoading(true);
+                                try {
+                                  const res = await fetch(`/api/appointments/${n.appointmentId}`);
+                                  if (res.ok) {
+                                    const data = await res.json();
+                                    setSelectedApt(data.appointment);
+                                  } else {
+                                    setSelectedAptDefault();
+                                  }
+                                } catch {
+                                  setSelectedAptDefault();
+                                } finally {
+                                  setLoading(false);
+                                }
+                              } else {
+                                setSelectedAptDefault();
+                              }
                             }}
                             className={cn(
                               "flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-neutral-50",
@@ -258,5 +289,22 @@ export function Navbar() {
         </div>
       </div>
     </header>
+      {selectedApt && (
+        <Modal isOpen={true} onClose={() => setSelectedApt(null)} title="Détails du rendez-vous">
+          {loading ? (
+            <p className="text-sm text-gray-500">Chargement du rendez-vous...</p>
+          ) : (
+            <div className="space-y-3 text-sm">
+              <p className="font-bold text-gray-900">{selectedApt.shop?.name}</p>
+              <p className="text-gray-600">{selectedApt.service?.name}</p>
+              <p className="text-gray-600">{selectedApt.barber?.user?.name || "—"}</p>
+              <p className="text-gray-600">{selectedApt.date} · {selectedApt.startTime}</p>
+              <p className="text-gray-600">{selectedApt.service?.price} DT</p>
+              <p className="text-xs font-bold text-violet-600">{selectedApt.status}</p>
+            </div>
+          )}
+        </Modal>
+      )}
+      </>
   );
 }

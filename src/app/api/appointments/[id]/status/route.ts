@@ -64,6 +64,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       const notif = await prisma.notification.create({
         data: {
           userId: appointment.clientId,
+          appointmentId: appointment.id,
           message: `Votre rendez-vous du ${appointment.date} à ${appointment.startTime} (${updated.service.name}) a été accepté ! 🎉`,
           type: "APPOINTMENT_ACCEPTED",
         },
@@ -93,6 +94,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       const notif = await prisma.notification.create({
         data: {
           userId: appointment.clientId,
+          appointmentId: appointment.id,
           message: `Votre rendez-vous du ${appointment.date} à ${appointment.startTime} (${updated.service.name}) est terminé. Merci pour votre visite ! N'hésitez pas à laisser un avis.`,
           type: "APPOINTMENT_COMPLETED",
         },

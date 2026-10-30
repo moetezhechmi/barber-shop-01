@@ -189,7 +189,7 @@ export default function BarberAppointmentsPage() {
       ) : (
         <div className="space-y-4">
           {filtered.map((appt) => (
-            <Card key={appt.id}>
+            <Card key={appt.id} id={`apt-${appt.id}`}>
               <CardContent className="p-6">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="space-y-2">

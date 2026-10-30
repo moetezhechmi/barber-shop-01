@@ -59,9 +59,10 @@ function playChimeSound() {
 // Notification handler using the global notif store
 function NotificationHandler() {
   const { toast } = useToast();
-  const { notifications, startPolling } = useNotifStore();
+  const { notifications, startPolling, fetchCount } = useNotifStore();
   const seenIds = React.useRef<Set<string>>(new Set());
-  const isFirstLoad = React.useRef(true);
+  const primed = React.useRef(false);
+  const lastFetch = React.useRef(0);
 
   React.useEffect(() => {
     const stop = startPolling(10000);
@@ -69,21 +70,23 @@ function NotificationHandler() {
   }, [startPolling]);
 
   React.useEffect(() => {
-    if (isFirstLoad.current) {
+    if (fetchCount === 0 || fetchCount === lastFetch.current) return;
+    lastFetch.current = fetchCount;
+    if (!primed.current) {
       notifications.forEach((n) => seenIds.current.add(n.id));
-      isFirstLoad.current = false;
+      primed.current = true;
       return;
     }
     let hasNew = false;
     notifications.forEach((n) => {
       if (!seenIds.current.has(n.id)) {
         seenIds.current.add(n.id);
-        hasNew = true;
-        toast(n.message, n.type === "APPOINTMENT_REQUEST" ? "info" : "success");
+        if (!n.isRead) hasNew = true;
+        if (!n.isRead) toast(n.message, n.type === "APPOINTMENT_REQUEST" ? "info" : "success");
       }
     });
     if (hasNew) playChimeSound();
-  }, [notifications, toast]);
+  }, [fetchCount, notifications, toast]);
 
   return null;
 }

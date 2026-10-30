@@ -6,6 +6,7 @@ export interface Notification {
   message: string;
   type: string;
   isRead: boolean;
+  appointmentId?: string | null;
   createdAt: string;
 }
 
@@ -13,6 +14,8 @@ interface NotifState {
   notifications: Notification[];
   unreadCount: number;
   polling: boolean;
+  loaded: boolean;
+  fetchCount: number;
   setNotifications: (notifs: Notification[]) => void;
   markRead: (id: string) => Promise<void>;
   markAllRead: () => Promise<void>;
@@ -24,6 +27,8 @@ export const useNotifStore = create<NotifState>((set, get) => ({
   notifications: [],
   unreadCount: 0,
   polling: false,
+  loaded: false,
+  fetchCount: 0,
 
   setNotifications: (notifications) =>
     set({ notifications, unreadCount: notifications.filter((n) => !n.isRead).length }),
@@ -34,8 +39,9 @@ export const useNotifStore = create<NotifState>((set, get) => ({
       if (!res.ok) return;
       const data = await res.json();
       const notifs: Notification[] = data.notifications || [];
-      set({ notifications: notifs, unreadCount: notifs.filter((n) => !n.isRead).length });
+      set({ notifications: notifs, unreadCount: notifs.filter((n) => !n.isRead).length, loaded: true, fetchCount: get().fetchCount + 1 });
     } catch {
+      set({ loaded: true, fetchCount: get().fetchCount + 1 });
       // silent
     }
   },
