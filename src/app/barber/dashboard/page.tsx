@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CalendarCheck, Clock, Users, TrendingUp, Scissors } from "lucide-react";
+import { CalendarCheck, Clock, Users, TrendingUp, Scissors, CheckCircle, CheckCheck } from "lucide-react";
 import { getStatusColor, getStatusLabel, formatTime } from "@/lib/utils";
 import { useBarberStore } from "@/store/barber.store";
 
@@ -105,6 +105,28 @@ export default function BarberDashboardPage() {
     }
     return counts;
   }, [todayAppts]);
+
+  const [updatingId, setUpdatingId] = React.useState<string | null>(null);
+
+  const updateStatus = React.useCallback(async (id: string, status: string) => {
+    setUpdatingId(id);
+    try {
+      const res = await fetch(`/api/appointments/${id}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error("Erreur");
+      const data = await res.json();
+      setAppointments((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, status: data.appointment?.status ?? status } : a))
+      );
+    } catch {
+      // silent
+    } finally {
+      setUpdatingId(null);
+    }
+  }, []);
 
   if (loading) {
     return (
@@ -240,6 +262,26 @@ export default function BarberDashboardPage() {
                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${getStatusColor(appt.status)}`}>
                       {getStatusLabel(appt.status)}
                     </span>
+                    {appt.status === "PENDING" && (
+                      <button
+                        onClick={() => updateStatus(appt.id, "CONFIRMED")}
+                        disabled={updatingId === appt.id}
+                        className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                      >
+                        <CheckCircle className="h-3.5 w-3.5" />
+                        Accepter
+                      </button>
+                    )}
+                    {appt.status === "CONFIRMED" && (
+                      <button
+                        onClick={() => updateStatus(appt.id, "COMPLETED")}
+                        disabled={updatingId === appt.id}
+                        className="inline-flex items-center gap-1 rounded-lg bg-violet-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-violet-700 disabled:opacity-50"
+                      >
+                        <CheckCheck className="h-3.5 w-3.5" />
+                        Terminer
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
